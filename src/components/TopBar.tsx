@@ -10,9 +10,9 @@ interface Props {
 
 function greeting() {
   const h = new Date().getHours();
-  if (h < 12) return { text: "Good Morning, Driver!", icon: Sunrise };
-  if (h < 17) return { text: "Good Afternoon, Driver!", icon: Sun };
-  return { text: "Good Evening, Driver!", icon: Sunset };
+  if (h < 12) return { text: "Good Morning, Admin!", icon: Sunrise };
+  if (h < 17) return { text: "Good Afternoon, Admin!", icon: Sun };
+  return { text: "Good Evening, Admin!", icon: Sunset };
 }
 
 export function TopBar({ incidents, onHelp }: Props) {
@@ -68,29 +68,42 @@ export function TopBar({ incidents, onHelp }: Props) {
             <CircleHelp size={16} /> <span className="hidden lg:inline">Help</span>
           </button>
 
-          {/* driver menu */}
+          {/* admin profile menu */}
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="flex items-center gap-2 rounded-xl border border-night-line bg-night-soft px-3 py-2 text-[13px] font-semibold text-white transition hover:border-green"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green text-[11px] font-bold text-white">
-                DR
+                AD
               </span>
-              <span className="hidden sm:inline">Driver</span>
+              <span className="hidden sm:inline">Admin</span>
               <ChevronDown size={14} className={`transition-transform ${menuOpen ? "rotate-180" : ""}`} />
             </button>
             {menuOpen && (
-              <div className="anim-pop absolute right-0 top-full mt-2 w-44 overflow-hidden rounded-xl border border-night-line bg-night-soft shadow-xl">
-                {["Dispatch profile", "Shift summary", "Sign out"].map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full px-4 py-2.5 text-left text-[13px] font-medium text-white/80 transition hover:bg-night hover:text-green-bright"
-                  >
-                    {item}
-                  </button>
-                ))}
+              <div className="anim-pop absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl border border-night-line bg-night-soft shadow-xl">
+                <div className="border-b border-night-line px-4 py-3">
+                  <p className="text-[13px] font-bold text-white">Admin</p>
+                  <p className="truncate font-mono text-[10px] text-white/50">admin@quantaroute.com</p>
+                  <span className="mt-1.5 inline-block rounded bg-green/20 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-green-bright">
+                    Super Admin
+                  </span>
+                </div>
+                <div className="py-1">
+                  {["Fleet Management", "System Config", "Dispatch Console", "Sign out"].map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => setMenuOpen(false)}
+                      className={`block w-full px-4 py-2 text-left text-[12px] font-medium transition ${
+                        item === "Sign out"
+                          ? "text-red hover:bg-red/10"
+                          : "text-white/80 hover:bg-night hover:text-green-bright"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

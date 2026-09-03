@@ -66,8 +66,12 @@ body {
 @keyframes qr-slide { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 .anim-slide { animation: qr-slide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-/* ---------- leaflet ---------- */
-.leaflet-container { font-family: var(--font-body); background: #e8ece8; }
+.leaflet-container {
+  font-family: var(--font-body);
+  background: #e8ece8;
+  isolation: isolate;
+  border-radius: inherit;
+}
 .leaflet-container.qr-addmode { cursor: crosshair !important; }
 .leaflet-control-attribution {
   font-size: 9px !important;

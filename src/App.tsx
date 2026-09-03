@@ -340,7 +340,7 @@ export default function App() {
 
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
                 <div className="space-y-4">
-                  <div className="h-[52dvh] min-h-[320px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[520px]">
+                  <div className="relative isolate z-0 h-[52dvh] min-h-[320px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[520px]">
                     <MapView
                       stops={stops}
                       stopMarkers={stopMarkers}
@@ -376,7 +376,7 @@ export default function App() {
 
           {view === "deliveries" && (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
-              <div className="h-[54dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)]">
+              <div className="relative isolate z-0 h-[54dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)]">
                 <MapView
                   stops={stops}
                   stopMarkers={stopMarkers}

@@ -166,7 +166,7 @@ export function LiveTrackingView({
         {routes.length === 0 && <span className="text-[11px] text-ink-faint">no trucks — add stops first</span>}
       </div>
 
-      <div className="h-[52dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)]">
+      <div className="relative isolate z-0 h-[52dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)]">
         <MapView
           stops={stops}
           stopMarkers={stopMarkers}

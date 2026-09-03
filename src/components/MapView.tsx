@@ -279,8 +279,8 @@ export function MapView({ stops, stopMarkers, incidents, routes, addMode, onAddS
   }, [trackProgress, routes, stops]);
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full" />
+    <div className="relative h-full w-full isolate overflow-hidden rounded-[inherit]">
+      <div ref={containerRef} className="h-full w-full rounded-[inherit] overflow-hidden" />
       {/* tile toggle */}
       <div className="absolute bottom-4 left-4 z-[500] flex overflow-hidden rounded-lg border border-line bg-white shadow-md">
         {(["map", "satellite"] as const).map((m) => (
