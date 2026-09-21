@@ -1,5 +1,5 @@
 import { buildMatrix, capacityFor, DEPOT, fleetColor, haversineKm } from "./network";
-import { decodeWithFleet, polishTours, runQPSO } from "./optimizer";
+import { polishTours, runQPSO } from "./optimizer";
 import { getCachedRouteGeometry } from "./osrm";
 import type { Incident, OptionMetrics, Stop, VehicleRoute, WaitRerouteVehicleDetail, WaitVsRerouteComparison } from "./types";
 
@@ -7,7 +7,7 @@ const BASE_FUEL_PER_KM = 0.11; // Liters per km driving
 const IDLE_FUEL_PER_MIN = 0.028; // Liters per minute crawling / idling in congestion
 const CO2_PER_LITER = 2.31; // kg CO2 per liter diesel
 
-function computeVehicleMetrics(tour: number[], matrix: ReturnType<typeof buildMatrix>, stopList: Stop[]) {
+function computeVehicleMetrics(tour: number[], matrix: ReturnType<typeof buildMatrix>) {
   let timeMin = 0;
   let distKm = 0;
   let prev = 0;
@@ -63,7 +63,7 @@ export function calculateWaitVsReroute(
   let freeFlowTotalTime = 0;
   let freeFlowTotalDist = 0;
   baselineTours.forEach((tour) => {
-    const m = computeVehicleMetrics(tour, freeFlowMatrix, stops);
+    const m = computeVehicleMetrics(tour, freeFlowMatrix);
     freeFlowTotalTime += m.timeMin;
     freeFlowTotalDist += m.distKm;
   });
@@ -73,7 +73,7 @@ export function calculateWaitVsReroute(
 
   // OPTION A: WAIT (Maintain baseline tours on congested network)
   const waitRoutes: VehicleRoute[] = baselineTours.map((tour, i) => {
-    const m = computeVehicleMetrics(tour, congestedMatrix, stops);
+    const m = computeVehicleMetrics(tour, congestedMatrix);
     const stopPoints = tour.map((pos) => stops[pos]).filter((s): s is Stop => Boolean(s));
     const tourPts = [DEPOT, ...stopPoints, DEPOT];
     return {
@@ -117,7 +117,7 @@ export function calculateWaitVsReroute(
     rerouteTours = reroutePolished.tours;
 
     rerouteRoutes = rerouteTours.map((tour, i) => {
-      const m = computeVehicleMetrics(tour, congestedMatrix, stops);
+      const m = computeVehicleMetrics(tour, congestedMatrix);
       const stopPoints = tour.map((pos) => stops[pos]).filter((s): s is Stop => Boolean(s));
       const tourPts = [DEPOT, ...stopPoints, DEPOT];
       return {

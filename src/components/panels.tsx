@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowRight,
   Car,
   Clock,
   Fuel,
@@ -213,7 +212,6 @@ export function BestRoutePanel({
           </li>
           {current.stopIds.map((id, idx) => {
             const s = stops.find((x) => x.id === id);
-            const last = idx === current.stopIds.length - 1;
             return (
               <li key={id} className="relative flex gap-3 pb-4">
                 <span
@@ -222,7 +220,7 @@ export function BestRoutePanel({
                 >
                   {idx + 1}
                 </span>
-                {!last && <span className="absolute left-3 top-7 h-full w-0.5 bg-line" />}
+                <span className="absolute left-3 top-7 h-full w-0.5 bg-line" />
                 <div className="leading-tight">
                   <p className="text-[13px] font-bold text-ink">{s?.name ?? `Stop ${id}`}</p>
                   <p className="text-[11px] text-ink-faint">{s?.demand ?? "—"} units · drop {idx + 1}</p>
@@ -230,6 +228,17 @@ export function BestRoutePanel({
               </li>
             );
           })}
+          {current.stopIds.length > 0 && (
+            <li className="relative flex gap-3">
+              <span className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-deep text-white shadow-sm">
+                <Warehouse size={12} />
+              </span>
+              <div className="leading-tight">
+                <p className="text-[13px] font-bold text-ink">Return · Depot</p>
+                <p className="text-[11px] text-ink-faint">{DEPOT.name}, Bengaluru (round-trip finish)</p>
+              </div>
+            </li>
+          )}
           {current.stopIds.length === 0 && (
             <li className="pl-9 text-[12px] italic text-ink-faint">Truck {current.label} is idle this run.</li>
           )}
@@ -268,7 +277,6 @@ export function TrafficAlertCard({
   timeSaved?: number;
 }) {
   if (!alert) return null;
-  const worse = alert.next > alert.prev;
   return (
     <section className="anim-pop rounded-xl border border-red/30 bg-red/5 p-4 shadow-sm">
       <div className="flex items-start gap-3">

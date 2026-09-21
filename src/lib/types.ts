@@ -47,15 +47,18 @@ export interface AlertData {
   next: number;
 }
 
+export type RunStatus = "OPTIMAL" | "REROUTED" | "WAITING" | "ACCIDENT" | "OVERLOAD" | "CLEARED";
+
 export interface RunEntry {
   id: number;
   time: string;
-  algorithm: "QPSO";
   fleet: number;
   stops: number;
   incidents: number;
   cost: number;
   feasible: boolean;
+  status: RunStatus;
+  situation: string;
 }
 
 export type Algorithm = "QPSO";

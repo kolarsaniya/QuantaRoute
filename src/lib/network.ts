@@ -4,8 +4,8 @@ import type { Incident, LatLng, MatrixData, Stop } from "./types";
 export const DEPOT: Stop = {
   id: -1,
   name: "Central Depot",
-  lat: 12.9767,
-  lng: 77.5952,
+  lat: 12.97672,
+  lng: 77.59518,
   demand: 0,
 };
 

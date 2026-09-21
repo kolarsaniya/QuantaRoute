@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
   Car,
   CheckCircle2,
   Clock,
@@ -9,13 +8,9 @@ import {
   GitCompare,
   Hourglass,
   Leaf,
-  MapPin,
   Navigation,
   Sparkles,
   Trash2,
-  Truck,
-  TrendingDown,
-  TrendingUp,
 } from "lucide-react";
 import type { WaitVsRerouteComparison } from "../lib/types";
 

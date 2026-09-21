@@ -5,7 +5,7 @@ import type { View } from "./Sidebar";
 const TABS: { id: View; label: string; icon: typeof GitCompare }[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard },
   { id: "deliveries", label: "Stops", icon: Package },
-  { id: "plan", label: "Wait/Reroute", icon: GitCompare },
+  { id: "compare", label: "Wait/Reroute", icon: GitCompare },
   { id: "tracking", label: "Track", icon: Waypoints },
 ];
 

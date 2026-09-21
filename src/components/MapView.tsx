@@ -71,11 +71,18 @@ const neutralIcon = (label: string) =>
 
 const depotIcon = L.divIcon({
   className: "qr-divicon",
-  iconSize: [56, 64],
-  iconAnchor: [28, 58],
-  html: `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-    <div style="background:#16a34a;color:#fff;font-family:'Instrument Sans',sans-serif;font-weight:700;font-size:12px;padding:4px 12px;border-radius:9999px;box-shadow:0 3px 8px rgba(22,163,74,0.4)">Start</div>
-    <div style="width:16px;height:16px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 6px rgba(11,15,14,0.3)"></div>
+  iconSize: [140, 46],
+  iconAnchor: [70, 35],
+  html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none">
+    <div style="background:#15803d;color:#ffffff;font-family:'Instrument Sans',sans-serif;font-weight:700;font-size:11px;line-height:14px;padding:3px 10px;border-radius:9999px;box-shadow:0 2px 8px rgba(0,0,0,0.35);letter-spacing:0.02em;white-space:nowrap;display:flex;align-items:center;gap:4px;border:1.5px solid #ffffff">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:9999px;background:#4ade80"></span>
+      Start · Central Depot
+    </div>
+    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:5px solid #15803d;margin-top:-1px"></div>
+    <div style="position:relative;width:18px;height:18px;margin-top:1px;display:flex;align-items:center;justify-content:center">
+      <div class="qr-pulse" style="background:#22c55e"></div>
+      <div style="position:relative;width:14px;height:14px;border-radius:9999px;background:#16a34a;border:2.5px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>
+    </div>
   </div>`,
 });
 
@@ -134,7 +141,12 @@ export function MapView({ stops, stopMarkers, incidents, routes, altRoutes, addM
     stopsLayer.current = L.layerGroup().addTo(map);
     trackLayer.current = L.layerGroup().addTo(map);
 
-    L.marker([DEPOT.lat, DEPOT.lng], { icon: depotIcon, zIndexOffset: 500 }).addTo(map);
+    L.marker([DEPOT.lat, DEPOT.lng], { icon: depotIcon, zIndexOffset: 800 })
+      .addTo(map)
+      .bindTooltip(`${DEPOT.name} · Fleet Start & Return Hub`, {
+        direction: "top",
+        offset: [0, -22],
+      });
 
     map.on("click", (e: L.LeafletMouseEvent) => {
       if (addModeRef.current) addCb.current(e.latlng.lat, e.latlng.lng);

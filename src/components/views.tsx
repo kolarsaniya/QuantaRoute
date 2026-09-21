@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Atom, MapPinned, Minus, Pause, Play, Plus, Route, Trash2, X } from "lucide-react";
-import type { Incident, RunEntry, Stop, VehicleRoute } from "../lib/types";
+import { Atom, MapPinned, Minus, Pause, Play, Plus, Route, Trash2, Warehouse, X } from "lucide-react";
+import type { Incident, RunEntry, RunStatus, Stop, VehicleRoute } from "../lib/types";
+import { DEPOT } from "../lib/network";
 import { MapView } from "./MapView";
 
 /* ---------------- My Deliveries ---------------- */
@@ -35,7 +36,28 @@ export function DeliveriesView({
         </button>
       </div>
 
-      <ul className="mt-4 divide-y divide-line">
+      {/* Fixed Start Point (Depot origin) */}
+      <div className="mt-4 rounded-xl border border-green/30 bg-green-tint/40 p-3 flex items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green text-white font-bold shadow-sm">
+          <Warehouse size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-display text-[13px] font-bold text-ink">Start Point · {DEPOT.name}</p>
+            <span className="rounded-full bg-green text-white text-[9px] font-mono font-bold px-2 py-0.5 uppercase tracking-wider">
+              Fleet Origin Hub
+            </span>
+          </div>
+          <p className="font-mono text-[10px] text-ink-faint">
+            {DEPOT.lat.toFixed(4)}, {DEPOT.lng.toFixed(4)} · All routes depart and return here
+          </p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 font-mono text-[10px] font-bold text-green-deep border border-green/20">
+          Hub · 0 units
+        </span>
+      </div>
+
+      <ul className="mt-2 divide-y divide-line">
         {stops.map((s, i) => (
           <li key={s.id} className="anim-slide flex items-center gap-3 py-2.5" style={{ animationDelay: `${i * 30}ms` }}>
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white font-mono text-[11px] font-bold text-ink">
@@ -275,45 +297,118 @@ export function DeliveryModal({
 }
 
 /* ---------------- History ---------------- */
+const STATUS_CONFIG: Record<
+  RunStatus,
+  { label: string; bg: string; text: string; border: string; dot: string }
+> = {
+  OPTIMAL: {
+    label: "OPTIMAL",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-700",
+    border: "border-emerald-500/30",
+    dot: "bg-emerald-500",
+  },
+  REROUTED: {
+    label: "REROUTED",
+    bg: "bg-blue-500/10",
+    text: "text-blue-700",
+    border: "border-blue-500/30",
+    dot: "bg-blue-500",
+  },
+  WAITING: {
+    label: "WAITING",
+    bg: "bg-amber-500/10",
+    text: "text-amber-700",
+    border: "border-amber-500/30",
+    dot: "bg-amber-500",
+  },
+  ACCIDENT: {
+    label: "ACCIDENT",
+    bg: "bg-red-500/10",
+    text: "text-red-700",
+    border: "border-red-500/30",
+    dot: "bg-red-500",
+  },
+  CLEARED: {
+    label: "CLEARED",
+    bg: "bg-teal-500/10",
+    text: "text-teal-700",
+    border: "border-teal-500/30",
+    dot: "bg-teal-500",
+  },
+  OVERLOAD: {
+    label: "OVERLOAD",
+    bg: "bg-rose-500/10",
+    text: "text-rose-700",
+    border: "border-rose-500/30",
+    dot: "bg-rose-500",
+  },
+};
+
 export function HistoryView({ log }: { log: RunEntry[] }) {
   return (
     <section className="anim-up overflow-hidden rounded-xl border border-line bg-card shadow-[0_2px_0_rgba(11,15,14,0.05)]">
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="font-display text-lg font-bold text-ink">Optimization History</h2>
-        <p className="text-[12px] text-ink-faint">Every solve this session, newest first.</p>
+      <div className="border-b border-line px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-display text-lg font-bold text-ink">Optimization History</h2>
+          <p className="text-[12px] text-ink-faint">Real-time status updates reflecting live traffic incidents, detours, and road situations.</p>
+        </div>
+        <span className="rounded-full bg-paper px-2.5 py-1 font-mono text-[11px] font-semibold text-ink-soft border border-line">
+          {log.length} {log.length === 1 ? "run" : "runs"} recorded
+        </span>
       </div>
       {log.length === 0 ? (
         <p className="px-4 py-10 text-center text-[13px] text-ink-faint">No runs yet — hit “Find Best Route”.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-line bg-paper font-mono text-[10px] uppercase tracking-wide text-ink-faint">
                 <th className="px-4 py-2.5">Time</th>
-                <th className="px-4 py-2.5">Engine</th>
-                <th className="px-4 py-2.5">Fleet</th>
-                <th className="px-4 py-2.5">Stops</th>
-                <th className="px-4 py-2.5">Incidents</th>
+                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Situation / Trigger</th>
+                <th className="px-4 py-2.5 text-center">Fleet</th>
+                <th className="px-4 py-2.5 text-center">Stops</th>
+                <th className="px-4 py-2.5 text-center">Incidents</th>
                 <th className="px-4 py-2.5 text-right">Cost (min)</th>
-                <th className="px-4 py-2.5 text-right">Status</th>
               </tr>
             </thead>
             <tbody>
-              {log.map((e, i) => (
-                <tr key={e.id} className="anim-slide border-b border-line/60 text-[12px] transition hover:bg-green-tint/40" style={{ animationDelay: `${i * 25}ms` }}>
-                  <td className="px-4 py-2.5 font-mono text-ink-faint">{e.time}</td>
-                  <td className="px-4 py-2.5 font-bold text-green-deep">{e.algorithm}</td>
-                  <td className="px-4 py-2.5 font-mono text-ink">{e.fleet}</td>
-                  <td className="px-4 py-2.5 font-mono text-ink">{e.stops}</td>
-                  <td className="px-4 py-2.5 font-mono text-ink">{e.incidents}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-bold text-ink">{e.cost.toFixed(1)}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${e.feasible ? "bg-green-tint text-green-deep" : "bg-red/10 text-red"}`}>
-                      {e.feasible ? "OK" : "OVER"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {log.map((e, i) => {
+                const conf = STATUS_CONFIG[e.status] ?? STATUS_CONFIG.OPTIMAL;
+                return (
+                  <tr
+                    key={e.id}
+                    className="anim-slide border-b border-line/60 text-[12px] transition hover:bg-green-tint/40"
+                    style={{ animationDelay: `${i * 25}ms` }}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-ink-faint whitespace-nowrap">{e.time}</td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-bold ${conf.bg} ${conf.text} ${conf.border}`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${conf.dot}`} />
+                        {conf.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 font-medium text-ink">
+                      {e.situation || (e.feasible ? "Free flow — optimal baseline" : "Over capacity")}
+                    </td>
+                    <td className="px-4 py-2.5 text-center font-mono text-ink">{e.fleet}</td>
+                    <td className="px-4 py-2.5 text-center font-mono text-ink">{e.stops}</td>
+                    <td className="px-4 py-2.5 text-center font-mono">
+                      {e.incidents > 0 ? (
+                        <span className="font-bold text-amber-600">{e.incidents} active</span>
+                      ) : (
+                        <span className="text-ink-faint">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-mono font-bold text-ink whitespace-nowrap">
+                      {e.cost.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -2,7 +2,7 @@ import type { LatLng, Stop, VehicleRoute } from "./types";
 import { DEPOT } from "./network";
 import precomputedRoadsRaw from "./precomputedRoads.json";
 
-const precomputed = precomputedRoadsRaw as Record<string, [number, number][]>;
+const precomputed = precomputedRoadsRaw as unknown as Record<string, [number, number][]>;
 
 /** In-memory cache for dynamic leg queries */
 const legCache = new Map<string, LatLng[]>();
@@ -99,6 +99,12 @@ export async function fetchRouteGeometry(points: (LatLng & { id?: number })[]): 
   }
 
   if (fullTourPath.length > 0) {
+    // Guarantee that route starts and ends at the exact terminal coordinates (Central Depot)
+    fullTourPath[0] = { lat: points[0].lat, lng: points[0].lng };
+    fullTourPath[fullTourPath.length - 1] = {
+      lat: points[points.length - 1].lat,
+      lng: points[points.length - 1].lng,
+    };
     tourCache.set(key, fullTourPath);
     return fullTourPath;
   }

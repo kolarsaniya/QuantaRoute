@@ -9,6 +9,7 @@ import { ControlDock } from "./components/ControlDock";
 import { WaitRerouteComparator } from "./components/WaitRerouteComparator";
 import { ModelSheet } from "./components/ModelSheet";
 import { DeliveriesView, DeliveryModal, HistoryView, LiveTrackingView, SettingsView } from "./components/views";
+import { HelpModal } from "./components/HelpModal";
 import { Toast, type ToastData } from "./components/Toast";
 import { buildMatrix, capacityFor, DEPOT, fleetColor, STOPS } from "./lib/network";
 import { polishTours, runQPSO, seedOptimizer } from "./lib/optimizer";
@@ -19,6 +20,7 @@ import type {
   Incident,
   IncidentKind,
   RunEntry,
+  RunStatus,
   Solution,
   Stop,
   VehicleRoute,
@@ -67,6 +69,7 @@ export default function App() {
   // WAIT vs REROUTE state
   const [activeRouteMode, setActiveRouteMode] = useState<"reroute" | "wait">("reroute");
   const [waitVsReroute, setWaitVsReroute] = useState<WaitVsRerouteComparison | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [solution, setSolution] = useState<Solution | null>(null);
   const [solveMs, setSolveMs] = useState<number | null>(null);
@@ -80,6 +83,7 @@ export default function App() {
   const nextStopId = useRef(100);
   const pendingAlert = useRef<{ kind: IncidentKind; place: string } | null>(null);
   const prevTime = useRef<number | null>(null);
+  const prevIncidents = useRef<number>(0);
 
   const pushToast = useCallback((msg: string, tone: ToastData["tone"]) => {
     setToast({ id: Date.now() + Math.random(), msg, tone });
@@ -140,6 +144,50 @@ export default function App() {
       const covered = new Set(chosenTours.flat());
       const feasible = covered.size === stopList.length;
 
+      // Situation-aware status and human-readable trigger description
+      let runStatus: RunStatus = "OPTIMAL";
+      let situationDesc = "Free flow — optimal baseline";
+      const maxTruckLoad = Math.max(0, ...chosenTours.map((t) => t.reduce((s, p) => s + (demands[p] ?? 0), 0)));
+      const isOverCapacity = maxTruckLoad > cap;
+
+      if (isOverCapacity) {
+        runStatus = "OVERLOAD";
+        situationDesc = `Capacity exceeded (${maxTruckLoad}/${cap} units)`;
+      } else if (incs.length === 0) {
+        if (prevIncidents.current > 0) {
+          runStatus = "CLEARED";
+          situationDesc = "Incidents cleared — free flow restored";
+        } else {
+          runStatus = "OPTIMAL";
+          situationDesc = "Free flow — optimal baseline";
+        }
+      } else {
+        const hasAccident = incs.some((i) => i.kind === "accident");
+        const hasTraffic = incs.some((i) => i.kind === "traffic");
+        const alertPlace = pendingAlert.current?.place;
+        const fallbackPlace = incs[0] ? `corridor near Stop ${Math.round(incs[0].lat * 100) % 10 + 1}` : "active corridor";
+        const place = alertPlace ?? fallbackPlace;
+
+        if (hasAccident) {
+          if (comparison.recommendation === "REROUTE") {
+            runStatus = "REROUTED";
+            situationDesc = `Accident near ${place} — QPSO detour bypass`;
+          } else {
+            runStatus = "ACCIDENT";
+            situationDesc = `Accident near ${place} — road blocked`;
+          }
+        } else if (hasTraffic) {
+          if (comparison.recommendation === "REROUTE") {
+            runStatus = "REROUTED";
+            situationDesc = `Heavy traffic near ${place} — QPSO saves ${comparison.timeSavedMin.toFixed(0)}m`;
+          } else {
+            runStatus = "WAITING";
+            situationDesc = `Traffic delay near ${place} — waiting is faster`;
+          }
+        }
+      }
+      prevIncidents.current = incs.length;
+
       setSolution({
         vehicles,
         totalTimeMin,
@@ -155,12 +203,13 @@ export default function App() {
           {
             id: Date.now() + Math.random(),
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-            algorithm: "QPSO",
             fleet: fleetSize,
             stops: stopList.length,
             incidents: incs.length,
             cost: chosenCost,
             feasible,
+            status: runStatus,
+            situation: situationDesc,
           },
           ...l,
         ].slice(0, 40),
@@ -272,12 +321,6 @@ export default function App() {
   );
 
   /* ---------------- derived ---------------- */
-  const stopMarkers = useMemo(() => {
-    const map: Record<number, { color: string; label: string }> = {};
-    solution?.vehicles.forEach((v) => v.stopIds.forEach((id, idx) => (map[id] = { color: v.color, label: String(idx + 1) })));
-    return map;
-  }, [solution]);
-
   // Drop any stop ids that no longer exist
   const rerouteRoutes = useMemo(() => {
     const ids = new Set(stops.map((s) => s.id));
@@ -292,6 +335,17 @@ export default function App() {
 
   // Active primary route based on user toggle (REROUTE vs WAIT)
   const activeRoutes = activeRouteMode === "wait" ? waitRoutes : rerouteRoutes;
+
+  // Node bubble colors and drop labels dynamically match the active mode (WAIT vs REROUTE)
+  const stopMarkers = useMemo(() => {
+    const map: Record<number, { color: string; label: string }> = {};
+    activeRoutes.forEach((v) => {
+      v.stopIds.forEach((id, idx) => {
+        map[id] = { color: v.color, label: String(idx + 1) };
+      });
+    });
+    return map;
+  }, [activeRoutes]);
 
   // Alternate route (rendered as dashed ghost line when comparing)
   const altRoutes =
@@ -308,7 +362,7 @@ export default function App() {
 
   return (
     <div className="qr-bg flex min-h-dvh flex-col">
-      <TopBar incidents={incidents} onHelp={() => setView("plan")} />
+      <TopBar incidents={incidents} onHelp={() => setHelpOpen(true)} />
 
       <div className="flex flex-1 flex-col lg:flex-row">
         <Sidebar view={view} setView={setView} />
@@ -381,7 +435,7 @@ export default function App() {
                   <div className="order-1">
                     <TrafficAlertCard
                       alert={alert}
-                      onView={() => setView("plan")}
+                      onView={() => setView("compare")}
                       waitMin={waitVsReroute?.waitOption.timeMin}
                       rerouteMin={waitVsReroute?.rerouteOption.timeMin}
                       timeSaved={waitVsReroute?.timeSavedMin}
@@ -425,7 +479,7 @@ export default function App() {
             </div>
           )}
 
-          {view === "plan" && (
+          {view === "compare" && (
             <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
               <div className="space-y-4">
                 <ControlDock
@@ -473,7 +527,7 @@ export default function App() {
           )}
 
           <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 font-mono text-[10px] text-ink-faint">
-            <span>QuantaRoute · quantum-inspired PSO · Problem Statement 1</span>
+            <span>QuantaRoute · Quantum-Inspired PSO</span>
             <span>
               map © OpenStreetMap · routing © OSRM · engine <span className="text-green-deep">QPSO</span>
             </span>
@@ -492,6 +546,7 @@ export default function App() {
         />
       )}
       <Toast toast={toast} />
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
