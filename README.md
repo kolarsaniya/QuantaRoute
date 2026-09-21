@@ -1,155 +1,190 @@
-# QuantaRoute — Setup & Configuration Guide (from scratch)
+# QuantaRoute — Quantum-Inspired Fleet Route Optimization
 
-Quantum-inspired (QPSO) multi-fleet vehicle routing prototype on an OpenStreetMap canvas.
-Stack: **Vite 7 · React 19 · TypeScript · Tailwind CSS v4 · Leaflet · Chart.js · lucide-react**.
+[![React 19](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![Vite 7](https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)](https://leafletjs.com)
+[![Solver](https://img.shields.io/badge/Engine-QPSO_(Quantum_PSO)-10B981)](#1-quantum-inspired-pso-qpso-engine)
 
----
-
-## 0. Prerequisites
-
-| Tool    | Version  | Check with        |
-| ------- | -------- | ----------------- |
-| Node.js | ≥ 20 LTS | `node -v`         |
-| npm     | ≥ 10     | `npm -v`          |
-| Git     | any      | `git --version`   |
-
-Install Node from <https://nodejs.org> (LTS). No API keys are required anywhere —
-OSM tiles and OSRM routing are public, key-less services.
+**QuantaRoute** is a high-performance, real-time multi-vehicle routing and fleet dispatch platform powered exclusively by **Quantum-Inspired Particle Swarm Optimization (QPSO)**. Built for dynamic urban delivery networks, QuantaRoute simulates live traffic bottlenecks and accidents, analyzes trade-offs between **WAITING** and **REROUTING**, and snaps all fleet routes to actual OpenStreetMap driving networks.
 
 ---
 
-## 1. Scaffold the project
+## Key Capabilities
 
-```bash
-npm create vite@latest quantaroute -- --template react-ts
-cd quantaroute
-npm install
-```
+### 1. Quantum-Inspired PSO (QPSO) Engine
+- **Wave-Function Delta Potential Formulation**: Particles converge toward a probabilistic quantum attractor $p_{ij}$ governed by personal best and global best swarm states:
+  $$X = P \pm \alpha \cdot |m_{best} - X| \cdot \ln(1/u)$$
+- **Continuous Random-Key Encoding**: Robust customer-to-truck sequence encoding that prevents infeasible solutions and explores the combinatorial permutation space.
+- **$\alpha$-Annealing Schedule**: Linear cooling parameter ($\alpha = 0.95 \to 0.50$) balances global exploration with rapid convergence.
+- **Memetic Polish (Exact TSP + 2-Opt)**: Intra-tour exact TSP for routes with $\le 8$ stops and 2-Opt string-exchange heuristics for larger routes, paired with inter-tour customer relocations to ensure clean, untangled routes.
 
-> If prompted "Use rolldown-vpm / Install with npm?" answer defaults (No / Yes).
+### 2. Closed Hamiltonian Cycles with Central Depot Hub
+- Every vehicle departs from and returns to the dedicated **Start Point · Central Depot** (`12.9763, 77.5929` near Cubbon Park, Bangalore).
+- High-fidelity origin/departure legs and return legs to replenish inventory.
+- Stop bubble markers dynamically match the visiting truck's color and display the exact drop sequence number ($1, 2, 3\dots$).
 
-## 2. Install third-party packages
+### 3. Live "WAIT vs. REROUTE" Decision Comparator
+When traffic congestion or accidents occur on route corridors, QuantaRoute evaluates both operational alternatives:
+- **Option A (WAIT)**: Keep current routing schedule, absorb congestion delay, and incur vehicle idling fuel consumption.
+- **Option B (REROUTE)**: Re-run dynamic QPSO dispatching around the bottleneck, incurring detour mileage to eliminate standstill delay.
+- **Multi-Factor Trade-Off Analysis**:
+  - Total Mission Duration & Active Time Saved
+  - Fuel Consumption (Active Travel + Idle Delays)
+  - Carbon Footprint ($CO_2$ kg)
+  - Vehicle-by-Vehicle Impact Breakdown (which trucks are affected vs. unaffected)
 
-```bash
-# runtime
-npm install leaflet chart.js lucide-react
+### 4. Real Drivable Road Paths (OSRM + Precomputed Roads)
+- Snaps all routes to authentic OpenStreetMap road segments using the OSRM driving profile.
+- Built-in precomputed road geometry cache for instantaneous loading and zero-latency route visualization.
+- Graceful offline fallback to straight-line interpolation if network connectivity is unavailable.
+- Interactive satellite imagery toggle (Esri World Imagery).
 
-# dev-only
-npm install -D @types/leaflet tailwindcss @tailwindcss/vite
-```
+### 5. Situation-Aware Optimization History
+Real-time status tracking reflects the exact conditions that triggered each solve:
+- 🟢 **OPTIMAL**: Free-flow baseline route calculated with no active incidents.
+- 🔵 **REROUTED**: Congestion or roadblock detected — QPSO recomputed a detour and displays time saved.
+- 🟡 **WAITING**: Traffic incident detected, but waiting out the congestion is evaluated to be faster than detouring.
+- 🔴 **ACCIDENT**: Critical road blockage incident detected on the corridor.
+- 🟢 **CLEARED**: Incidents cleared and normal free-flow operations restored.
+- 🔴 **OVERLOAD**: Customer demand exceeded vehicle capacity.
 
-Versions this prototype was verified with:
+---
 
-| Package           | Version   |
-| ----------------- | --------- |
-| react / react-dom | ^19.2.x   |
-| vite              | ^7.3.x    |
-| typescript        | ~5.9.x    |
-| tailwindcss       | ^4.1.x    |
-| @tailwindcss/vite | ^4.1.x    |
-| leaflet           | ^1.9.x    |
-| chart.js          | ^4.x      |
-| lucide-react      | latest    |
+## Tech Stack & Architecture
 
-## 3. Configure Vite (`vite.config.ts`)
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | React 19 + TypeScript | Component state, reactive UI, and strict type safety |
+| **Build Tool** | Vite 7 (`vite-plugin-singlefile`) | Lightning-fast HMR and self-contained single-file HTML bundle |
+| **Styling** | Tailwind CSS v4 (`@tailwindcss/vite`) | Next-generation zero-config CSS styling with custom theme tokens |
+| **Mapping** | Leaflet 1.9 | Interactive vector map, satellite layer, custom markers, and path rendering |
+| **Routing** | OSRM (OpenStreetMap) | Drivable road geometry snapping and distance calculation |
+| **Optimization** | Custom QPSO + Memetic 2-Opt | Pure TypeScript quantum swarm metaheuristic with seeded reproducibility |
 
-Replace the file contents with:
+---
 
-```ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-});
-```
-
-Tailwind v4 needs **no** `tailwind.config.js` — theme tokens live in CSS (`src/index.css`).
-
-## 4. Global stylesheet (`src/index.css`)
-
-First two lines are mandatory and order-sensitive:
-
-```css
-@import "leaflet/dist/leaflet.css";
-@import "tailwindcss";
-```
-
-Then the `@theme { … }` block (colors, fonts), keyframes and Leaflet overrides
-from this repository's `src/index.css`.
-
-## 5. HTML shell (`index.html`)
-
-- `<title>QuantaRoute — Quantum-Inspired Traffic Route Optimization</title>`
-- Google Fonts: **Space Grotesk**, **Instrument Sans**, **JetBrains Mono**
-- Inline SVG favicon (green route glyph on black tile)
-
-## 6. TypeScript env types (`src/vite-env.d.ts`)
-
-```ts
-/// <reference types="vite/client" />
-```
-
-Required so `import logo from "./assets/logo.png"` type-checks.
-
-## 7. Source tree
+## Source Tree
 
 ```
 src/
-├─ main.tsx               # root + ErrorBoundary
-├─ App.tsx                # state, scenario seed, solve orchestration, views
-├─ index.css              # tailwind theme + leaflet styles + animations
-├─ assets/logo.png        # app logo (flat green/black)
+├─ main.tsx                      # Application entrypoint & ErrorBoundary root
+├─ App.tsx                       # State machine, scenario orchestration, and view router
+├─ index.css                     # Tailwind v4 theme, font definitions, and map styles
+├─ vite-env.d.ts                 # TypeScript client environment types
+├─ assets/
+│  └─ logo.png                   # Brand mark
 ├─ lib/
-│  ├─ types.ts            # Stop, Incident, VehicleRoute, Solution, …
-│  ├─ network.ts          # graph model, congestion field, capacity, palette
-│  ├─ optimizer.ts        # seeded RNG, QPSO/PSO/GA/greedy, 2-opt refinement
-│  └─ osrm.ts             # road-snapped geometry from OSRM (OpenStreetMap)
+│  ├─ network.ts                 # Graph coordinates, depot origin, demand & Gaussian congestion fields
+│  ├─ optimizer.ts               # Core QPSO metaheuristic, 2-Opt refinement, and exact TSP polish
+│  ├─ waitReroute.ts             # WAIT vs. REROUTE trade-off comparator engine & fuel/CO2 models
+│  ├─ osrm.ts                    # OSRM road geometry fetcher, caching layer, and geometry decoding
+│  ├─ precomputedRoads.json      # Offline high-fidelity drivable road segments for Bangalore
+│  └─ types.ts                   # Core interfaces (Stop, Incident, RunStatus, RunEntry, Solution)
 └─ components/
-   ├─ TopBar.tsx  Sidebar.tsx  MapView.tsx  panels.tsx
-   ├─ ControlDock.tsx  Benchmark.tsx  ModelSheet.tsx
-   ├─ views.tsx  Toast.tsx  ErrorBoundary.tsx
+   ├─ TopBar.tsx                 # Header navigation, live disruption status, and Help trigger
+   ├─ Sidebar.tsx                # Desktop side navigation bar
+   ├─ BottomNav.tsx              # Mobile/tablet bottom navigation bar
+   ├─ MapView.tsx                # Leaflet map container, custom pins, route paths, and layer toggle
+   ├─ ControlDock.tsx            # Fleet size slider, scenario resets, and solve action bar
+   ├─ panels.tsx                 # Incident disruption bar (+Jam, +Crash), traffic alerts, and stats
+   ├─ WaitRerouteComparator.tsx  # Interactive WAIT vs. REROUTE modal and side-by-side dashboard
+   ├─ HelpModal.tsx              # Comprehensive in-app user guide (Depot Hub, QPSO, Comparator, Controls)
+   ├─ ModelSheet.tsx             # Mathematical formulation sheet (QPSO equations & objective function)
+   ├─ Toast.tsx                  # Floating notification alerts
+   ├─ ErrorBoundary.tsx          # Application error boundary
+   └─ views.tsx                  # Main views:
+                                 #  ├─ DeliveriesView (custom delivery stops & depot display)
+                                 #  ├─ DeliveryModal (interactive map-click delivery creator)
+                                 #  ├─ HistoryView (situation-aware status history table)
+                                 #  ├─ LiveTrackingView (animated truck dispatch queue & route progress)
+                                 #  └─ SettingsView (road-snap toggle & engine diagnostics)
 ```
 
-Copy these files from this repository into the scaffold (keep paths identical).
+---
 
-## 8. Run it
+## Getting Started
+
+### 1. Prerequisites
+- **Node.js**: `≥ 20 LTS` (recommended: Node 20 or Node 22)
+- **npm**: `≥ 10`
+
+No API keys are required. All tile layers and routing services use public, keyless OpenStreetMap and OSRM endpoints with offline caching.
+
+### 2. Installation
+
+Clone the repository and install dependencies:
 
 ```bash
-npm run dev        # http://localhost:5173
-npm run build      # production bundle in dist/
-npm run preview    # serve the production build locally
+git clone https://github.com/kolarsaniya/QuantaRoute.git
+cd QuantaRoute
+npm install
 ```
 
-## 9. External services used at runtime (no keys)
+### 3. Development Server
 
-| Service            | Endpoint                                  | Purpose                        |
-| ------------------ | ----------------------------------------- | ------------------------------ |
-| OSM tiles          | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | base map                |
-| OSRM demo server   | `https://router.project-osrm.org/route/v1/driving/…` | road-snapped routes |
-| Esri World Imagery | `…/World_Imagery/MapServer/tile/{z}/{y}/{x}` | satellite toggle       |
-
-All calls are guarded: offline or rate-limited responses fall back to straight-line
-routes automatically.
-
-## 10. Troubleshooting
-
-| Symptom                          | Fix                                                                 |
-| -------------------------------- | ------------------------------------------------------------------- |
-| Grey map box                     | Leaflet CSS not imported, or container has no height (`h-[…]` class) |
-| Map mis-sized after layout change| call `map.invalidateSize()` (already wired via ResizeObserver)       |
-| Missing default marker images    | Not needed — all markers are custom `L.divIcon`                      |
-| Tailwind classes do nothing      | `@tailwindcss/vite` plugin missing in `vite.config.ts`               |
-| `Cannot find module './assets/logo.png'` | add `src/vite-env.d.ts` (step 6)                            |
-| Routes change on every click     | ensure `seedOptimizer(scenarioSeed(...))` runs before each solve     |
-| Huge bundle warning              | expected (Leaflet + Chart.js); optionally add `vite-plugin-singlefile` |
-
-## 11. Optional: single-file build
+Start the local development server with Vite HMR:
 
 ```bash
-npm i -D vite-plugin-singlefile
+npm run dev
 ```
 
-and add `singlefile()` to `plugins` in `vite.config.ts` — produces one portable
-`dist/index.html`, as used for the hosted demo.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 4. Production Build
+
+Compile the production bundle (generates a portable, self-contained `dist/index.html`):
+
+```bash
+npm run build
+```
+
+Preview the production build locally:
+
+```bash
+npm run preview
+```
+
+---
+
+## User Workflows & Controls
+
+1. **Viewing Routes**:
+   - Click **"Find Best Route"** to trigger the QPSO solver.
+   - Observe trucks departing from the **Start Point · Central Depot** and returning upon finishing all customer drops.
+2. **Adding Custom Deliveries**:
+   - Click **"Add Delivery"** in the top header or Deliveries view.
+   - Click any location on the Bangalore canvas to place a new delivery stop and specify unit demands.
+3. **Simulating Disruptions**:
+   - Click **"+ Jam"** or **"+ Crash"** in the disruption bar to inject real-time road incidents.
+   - QuantaRoute dynamically recalculates the network edge weights using a Gaussian congestion field.
+4. **Comparing WAIT vs. REROUTE**:
+   - Inspect the **WAIT vs REROUTE** comparison panel to review time saved, detour distance, and fuel savings.
+   - Use the map toggle to switch between the original route sequence (**WAIT**) and the detour bypass (**REROUTE**).
+5. **Tracking Live Fleet Dispatch**:
+   - Switch to the **Tracking** tab to observe animated vehicle dispatch sequences along real street segments.
+6. **Reviewing Optimization History**:
+   - Open the **History** tab to inspect all previous runs with color-coded status badges (`OPTIMAL`, `REROUTED`, `WAITING`, `ACCIDENT`, `CLEARED`, `OVERLOAD`) and situational descriptions.
+
+---
+
+## Mathematical Formulation
+
+The Capacitated Vehicle Routing Problem with Traffic Disruptions (CVRP-TD) is modeled as:
+
+$$\min \sum_{k \in K} \sum_{(i,j) \in E} c_{ij}(\tau) \cdot x_{ijk} + \lambda \sum_{k \in K} \max\left(0, \sum_{i \in V} d_i y_{ik} - Q\right)$$
+
+Subject to:
+1. Every customer stop is visited exactly once: $\sum_{k} y_{ik} = 1, \; \forall i \in V \setminus \{0\}$.
+2. Route continuity and closed cycle: $\sum_{j} x_{0jk} = \sum_{j} x_{j0k} = 1, \; \forall k \in K$.
+3. Subtour elimination via flow and capacity constraints.
+4. Dynamic edge travel time:
+   $$t_{ij}(\tau) = \frac{\text{dist}_{ij}}{v_0} \cdot \left[1 + \sum_{m \in M} \gamma_m \cdot \exp\left(-\frac{\|\text{mid}_{ij} - \text{loc}_m\|^2}{2\sigma_m^2}\right)\right]$$
+
+---
+
+## License & Attribution
+- Map Data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+- Routing Engine © [OSRM Project](http://project-osrm.org/).
+- Satellite Imagery © [Esri World Imagery](https://www.esri.com/).
