@@ -6,23 +6,23 @@ import { BottomNav } from "./components/BottomNav";
 import { MapView } from "./components/MapView";
 import { BestRoutePanel, IncidentBar, InfoCards, StatsStrip, TrafficAlertCard } from "./components/panels";
 import { ControlDock } from "./components/ControlDock";
-import { Benchmark } from "./components/Benchmark";
+import { WaitRerouteComparator } from "./components/WaitRerouteComparator";
 import { ModelSheet } from "./components/ModelSheet";
 import { DeliveriesView, DeliveryModal, HistoryView, LiveTrackingView, SettingsView } from "./components/views";
 import { Toast, type ToastData } from "./components/Toast";
 import { buildMatrix, capacityFor, DEPOT, fleetColor, STOPS } from "./lib/network";
-import { polishTours, runGA, runGreedy, runPSO, runQPSO, seedOptimizer } from "./lib/optimizer";
-import { fetchRouteGeometry } from "./lib/osrm";
+import { polishTours, runQPSO, seedOptimizer } from "./lib/optimizer";
+import { calculateWaitVsReroute } from "./lib/waitReroute";
+import { getCachedRouteGeometry, snapVehicleRoutes } from "./lib/osrm";
 import type {
-  Algorithm,
   AlertData,
-  BenchmarkResult,
   Incident,
   IncidentKind,
   RunEntry,
   Solution,
   Stop,
   VehicleRoute,
+  WaitVsRerouteComparison,
 } from "./lib/types";
 
 function vehicleMetrics(tour: number[], matrix: ReturnType<typeof buildMatrix>) {
@@ -40,8 +40,6 @@ function vehicleMetrics(tour: number[], matrix: ReturnType<typeof buildMatrix>) 
   }
   return { timeMin, distKm };
 }
-
-const ALGO_COLOR: Record<Algorithm, string> = { QPSO: "#16a34a", PSO: "#0f766e", GA: "#84cc16" };
 
 /** FNV-1a hash of the scenario — same fleet + stops + incidents ⇒ same seed ⇒ same routes. */
 function scenarioSeed(stopList: Stop[], incs: Incident[], fleetSize: number): number {
@@ -64,12 +62,13 @@ export default function App() {
   const [stops, setStops] = useState<Stop[]>(STOPS);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [addMode, setAddMode] = useState(false);
-  const [algorithm, setAlgorithm] = useState<Algorithm>("QPSO");
   const [roadSnap, setRoadSnap] = useState(true);
 
+  // WAIT vs REROUTE state
+  const [activeRouteMode, setActiveRouteMode] = useState<"reroute" | "wait">("reroute");
+  const [waitVsReroute, setWaitVsReroute] = useState<WaitVsRerouteComparison | null>(null);
+
   const [solution, setSolution] = useState<Solution | null>(null);
-  const [results, setResults] = useState<BenchmarkResult[]>([]);
-  const [greedyCost, setGreedyCost] = useState<number | null>(null);
   const [solveMs, setSolveMs] = useState<number | null>(null);
   const [solving, setSolving] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -91,9 +90,9 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  /* ---------------- optimization ---------------- */
+  /* ---------------- optimization (QPSO exclusively) ---------------- */
   const optimize = useCallback(
-    async (fleetSize: number, incs: Incident[], stopList: Stop[], algo: Algorithm, snap: boolean) => {
+    async (fleetSize: number, incs: Incident[], stopList: Stop[], snap: boolean) => {
       const myRun = ++runId.current;
       setSolving(true);
       const t0 = performance.now();
@@ -103,59 +102,36 @@ export default function App() {
       const cap = capacityFor(fleetSize, stopList);
       await new Promise((r) => setTimeout(r, 40));
 
-      const q = runQPSO(matrix, demands, cap, fleetSize);
-      const p = runPSO(matrix, demands, cap, fleetSize);
-      const g = runGA(matrix, demands, cap, fleetSize);
-      const greedy = runGreedy(matrix, demands, cap, fleetSize);
+      // Pure Quantum PSO run
+      const q = runQPSO(matrix, demands, cap, fleetSize, 70, 26);
+      const polished = polishTours(q.bestTours, matrix, demands, cap, 5);
+      const chosenTours = polished.cost < q.bestCost ? polished.tours : q.bestTours;
+      const chosenCost = Math.min(q.bestCost, polished.cost);
+      const chosenHist = q.history;
 
-      // guarantee: if a baseline ever edges past QPSO, run extra 2-opt refinement rounds
-      let qTours = q.bestTours;
-      let qCost = q.bestCost;
-      const qHist = [...q.history];
-      const rival = Math.min(p.bestCost, g.bestCost);
-      let guard = 0;
-      while (qCost >= rival - 1e-6 && guard++ < 24) {
-        const res = polishTours(qTours, matrix, demands, cap);
-        if (res.cost >= qCost - 1e-9) break;
-        qTours = res.tours;
-        qCost = res.cost;
-        qHist.push(qCost);
-      }
+      // Calculate and compare WAIT vs REROUTE
+      const comparison = calculateWaitVsReroute(stopList, incs, fleetSize);
 
       const ms = Math.round(performance.now() - t0);
       if (myRun !== runId.current) return;
 
-      const resultSets: Record<Algorithm, { history: number[]; bestCost: number }> = {
-        QPSO: { history: qHist, bestCost: qCost },
-        PSO: { history: p.history, bestCost: p.bestCost },
-        GA: { history: g.history, bestCost: g.bestCost },
-      };
-      setResults(
-        (Object.keys(resultSets) as Algorithm[]).map((a) => ({
-          algorithm: a,
-          color: ALGO_COLOR[a],
-          ...resultSets[a],
-        })),
-      );
-      setGreedyCost(greedy.cost);
+      setWaitVsReroute(comparison);
       setSolveMs(ms);
-
-      const chosenTours = algo === "QPSO" ? qTours : algo === "PSO" ? p.bestTours : g.bestTours;
-      const chosenHist = resultSets[algo].history;
-      const chosenCost = resultSets[algo].bestCost;
 
       const vehicles: VehicleRoute[] = chosenTours.map((tour, i) => {
         const m = vehicleMetrics(tour, matrix);
+        const stopIds = tour.map((pos) => stopList[pos]?.id).filter((x): x is number => x != null);
+        const stopPoints = stopIds.map((id) => stopList.find((s) => s.id === id)).filter((s): s is Stop => Boolean(s));
+        const pts = [DEPOT, ...stopPoints, DEPOT];
         return {
           vehicleId: i,
           label: String(i + 1),
           color: fleetColor(i),
-          // decode returns positions in the stop list — map them back to real stop ids
-          stopIds: tour.map((pos) => stopList[pos]?.id).filter((x): x is number => x != null),
+          stopIds,
           distanceKm: m.distKm,
           timeMin: m.timeMin,
           load: tour.reduce((s, pos) => s + (demands[pos] ?? 0), 0),
-          geometry: null,
+          geometry: getCachedRouteGeometry(pts),
         };
       });
 
@@ -179,7 +155,7 @@ export default function App() {
           {
             id: Date.now() + Math.random(),
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-            algorithm: algo,
+            algorithm: "QPSO",
             fleet: fleetSize,
             stops: stopList.length,
             incidents: incs.length,
@@ -203,19 +179,25 @@ export default function App() {
       pendingAlert.current = null;
       prevTime.current = totalTimeMin;
 
-      // road-snap via OSRM
+      // road-snap via OSRM for BOTH reroute and wait routes
       if (snap) {
-        vehicles.forEach((v) => {
-          if (v.stopIds.length === 0) return;
-          const pts = [DEPOT, ...v.stopIds.map((id) => stopList.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
-          fetchRouteGeometry(pts).then((geo) => {
-            if (!geo || myRun !== runId.current) return;
-            setSolution((prev) =>
-              prev
-                ? { ...prev, vehicles: prev.vehicles.map((x) => (x.vehicleId === v.vehicleId ? { ...x, geometry: geo } : x)) }
-                : prev,
-            );
-          });
+        Promise.all([
+          snapVehicleRoutes(vehicles, stopList),
+          snapVehicleRoutes(comparison.waitOption.routes, stopList),
+        ]).then(([snappedVehicles, snappedWait]) => {
+          if (myRun !== runId.current) return;
+          setSolution((prev) =>
+            prev ? { ...prev, vehicles: snappedVehicles } : prev,
+          );
+          setWaitVsReroute((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  waitOption: { ...prev.waitOption, routes: snappedWait },
+                  rerouteOption: { ...prev.rerouteOption, routes: snappedVehicles },
+                }
+              : prev,
+          );
         });
       }
     },
@@ -223,8 +205,8 @@ export default function App() {
   );
 
   useEffect(() => {
-    optimize(fleet, incidents, stops, algorithm, roadSnap);
-  }, [fleet, incidents, stops, algorithm, roadSnap, optimize]);
+    optimize(fleet, incidents, stops, roadSnap);
+  }, [fleet, incidents, stops, roadSnap, optimize]);
 
   /* ---------------- scenario actions ---------------- */
   const addIncident = useCallback(
@@ -242,7 +224,9 @@ export default function App() {
       prevTime.current = solution?.totalTimeMin ?? prevTime.current;
       setIncidents((p) => [...p, inc]);
       pushToast(
-        kind === "traffic" ? `Traffic jam near ${near.name} — re-routing fleets` : `Accident near ${near.name} — fleets re-routed`,
+        kind === "traffic"
+          ? `Traffic jam near ${near.name} — comparing WAIT vs REROUTE`
+          : `Accident near ${near.name} — comparing WAIT vs REROUTE`,
         kind,
       );
     },
@@ -294,14 +278,32 @@ export default function App() {
     return map;
   }, [solution]);
 
-  // drop any stop ids that no longer exist (protects renders during scenario transitions)
-  const routes = useMemo(() => {
+  // Drop any stop ids that no longer exist
+  const rerouteRoutes = useMemo(() => {
     const ids = new Set(stops.map((s) => s.id));
     return (solution?.vehicles ?? []).map((v) => ({ ...v, stopIds: v.stopIds.filter((id) => ids.has(id)) }));
   }, [solution, stops]);
+
+  const waitRoutes = useMemo(() => {
+    if (!waitVsReroute) return rerouteRoutes;
+    const ids = new Set(stops.map((s) => s.id));
+    return waitVsReroute.waitOption.routes.map((v) => ({ ...v, stopIds: v.stopIds.filter((id) => ids.has(id)) }));
+  }, [waitVsReroute, rerouteRoutes, stops]);
+
+  // Active primary route based on user toggle (REROUTE vs WAIT)
+  const activeRoutes = activeRouteMode === "wait" ? waitRoutes : rerouteRoutes;
+
+  // Alternate route (rendered as dashed ghost line when comparing)
+  const altRoutes =
+    incidents.length > 0 && waitVsReroute
+      ? activeRouteMode === "wait"
+        ? rerouteRoutes
+        : waitRoutes
+      : undefined;
+
   const safeSolution = useMemo(
-    () => (solution ? { ...solution, vehicles: routes } : null),
-    [solution, routes],
+    () => (solution ? { ...solution, vehicles: activeRoutes } : null),
+    [solution, activeRoutes],
   );
 
   return (
@@ -321,8 +323,8 @@ export default function App() {
                     Plan smart. <span className="text-green">Deliver better.</span>
                   </h2>
                   <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-ink-soft sm:text-[13px]">
-                    QuantaRoute turns live city conditions into optimal multi-truck routes — add your own stops, drop
-                    traffic or accidents on the road, and watch every fleet adapt in real time.
+                    QuantaRoute powers multi-truck dispatching with Quantum-Inspired Particle Swarm Optimization (QPSO).
+                    Simulate city congestion, evaluate whether to WAIT or REROUTE, and dispatch with precision.
                   </p>
                 </div>
                 <button
@@ -345,18 +347,45 @@ export default function App() {
                       stops={stops}
                       stopMarkers={stopMarkers}
                       incidents={incidents}
-                      routes={routes}
+                      routes={activeRoutes}
+                      altRoutes={altRoutes}
                       addMode={addMode}
                       onAddStop={handleMapAdd}
                     />
+
+                    {/* Active Route Mode Indicator overlay on map */}
+                    {incidents.length > 0 && (
+                      <div className="absolute top-3 right-3 z-[500] flex items-center gap-1.5 rounded-lg border border-line/70 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
+                        <span className="text-[11px] font-semibold text-ink-soft">Displaying:</span>
+                        <span
+                          className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase ${
+                            activeRouteMode === "reroute" ? "bg-green text-white" : "bg-amber text-ink"
+                          }`}
+                        >
+                          {activeRouteMode}
+                        </span>
+                        <button
+                          onClick={() => setActiveRouteMode((m) => (m === "reroute" ? "wait" : "reroute"))}
+                          className="ml-1 text-[11px] text-ink-faint hover:text-ink underline transition"
+                        >
+                          switch to {activeRouteMode === "reroute" ? "wait" : "reroute"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <StatsStrip solution={solution} solving={solving} onOptimize={() => optimize(fleet, incidents, stops, algorithm, roadSnap)} />
+                  <StatsStrip solution={safeSolution} solving={solving} onOptimize={() => optimize(fleet, incidents, stops, roadSnap)} />
                 </div>
 
                 {/* mobile: alerts → simulate → route detail; desktop: alerts → route → simulate */}
                 <div className="flex flex-col gap-4">
                   <div className="order-1">
-                    <TrafficAlertCard alert={alert} onView={() => setAlert(null)} />
+                    <TrafficAlertCard
+                      alert={alert}
+                      onView={() => setView("plan")}
+                      waitMin={waitVsReroute?.waitOption.timeMin}
+                      rerouteMin={waitVsReroute?.rerouteOption.timeMin}
+                      timeSaved={waitVsReroute?.timeSavedMin}
+                    />
                   </div>
                   <div className="order-2 xl:order-3">
                     <IncidentBar
@@ -381,7 +410,8 @@ export default function App() {
                   stops={stops}
                   stopMarkers={stopMarkers}
                   incidents={incidents}
-                  routes={routes}
+                  routes={activeRoutes}
+                  altRoutes={altRoutes}
                   addMode={addMode}
                   onAddStop={handleMapAdd}
                 />
@@ -403,7 +433,7 @@ export default function App() {
                   setFleet={setFleet}
                   solving={solving}
                   capacity={capacityFor(fleet, stops)}
-                  onOptimize={() => optimize(fleet, incidents, stops, algorithm, roadSnap)}
+                  onOptimize={() => optimize(fleet, incidents, stops, roadSnap)}
                 />
                 <IncidentBar
                   count={incidents.length}
@@ -413,24 +443,39 @@ export default function App() {
                 />
                 <ModelSheet />
               </div>
-              <Benchmark results={results} greedyCost={greedyCost} solveMs={solveMs} />
+
+              {waitVsReroute ? (
+                <WaitRerouteComparator
+                  comparison={waitVsReroute}
+                  activeMode={activeRouteMode}
+                  onSelectMode={setActiveRouteMode}
+                  onAddTraffic={() => addIncident("traffic")}
+                  onAddAccident={() => addIncident("accident")}
+                  onClearIncidents={clearIncidents}
+                  solveMs={solveMs}
+                />
+              ) : (
+                <div className="rounded-xl border border-line bg-card p-6 text-center text-[13px] text-ink-faint">
+                  Calculating WAIT vs REROUTE options…
+                </div>
+              )}
             </div>
           )}
 
           {view === "tracking" && (
-            <LiveTrackingView stops={stops} stopMarkers={stopMarkers} incidents={incidents} routes={routes} />
+            <LiveTrackingView stops={stops} stopMarkers={stopMarkers} incidents={incidents} routes={activeRoutes} />
           )}
 
           {view === "history" && <HistoryView log={log} />}
 
           {view === "settings" && (
-            <SettingsView algorithm={algorithm} setAlgorithm={setAlgorithm} roadSnap={roadSnap} setRoadSnap={setRoadSnap} />
+            <SettingsView roadSnap={roadSnap} setRoadSnap={setRoadSnap} />
           )}
 
           <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 font-mono text-[10px] text-ink-faint">
             <span>QuantaRoute · quantum-inspired PSO · Problem Statement 1</span>
             <span>
-              map © OpenStreetMap · routing © OSRM · engine <span className="text-green-deep">{algorithm}</span>
+              map © OpenStreetMap · routing © OSRM · engine <span className="text-green-deep">QPSO</span>
             </span>
           </footer>
         </main>

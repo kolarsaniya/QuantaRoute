@@ -39,13 +39,6 @@ export interface Solution {
   solveMs: number;
 }
 
-export interface BenchmarkResult {
-  algorithm: string;
-  color: string;
-  history: number[]; // best cost per iteration
-  bestCost: number;
-}
-
 export interface AlertData {
   id: number;
   kind: "traffic" | "accident";
@@ -57,7 +50,7 @@ export interface AlertData {
 export interface RunEntry {
   id: number;
   time: string;
-  algorithm: string;
+  algorithm: "QPSO";
   fleet: number;
   stops: number;
   incidents: number;
@@ -65,9 +58,49 @@ export interface RunEntry {
   feasible: boolean;
 }
 
-export type Algorithm = "QPSO" | "PSO" | "GA";
+export type Algorithm = "QPSO";
 
 export interface MatrixData {
   time: number[][]; // minutes, node 0 = depot
   dist: number[][]; // km
+}
+
+export interface OptionMetrics {
+  title: "WAIT" | "REROUTE";
+  timeMin: number;
+  distKm: number;
+  delayMin: number;
+  fuelLiters: number;
+  co2Kg: number;
+  costScore: number;
+  routes: VehicleRoute[];
+}
+
+export interface WaitRerouteVehicleDetail {
+  vehicleId: number;
+  label: string;
+  color: string;
+  isDirectlyAffected: boolean;
+  waitTimeMin: number;
+  rerouteTimeMin: number;
+  timeSavingsMin: number; // waitTimeMin - rerouteTimeMin
+  waitDistKm: number;
+  rerouteDistKm: number;
+  detourDistKm: number; // rerouteDistKm - waitDistKm
+  recommendation: "REROUTE" | "WAIT";
+}
+
+export interface WaitVsRerouteComparison {
+  hasIncident: boolean;
+  incidentCount: number;
+  freeFlowTimeMin: number;
+  waitOption: OptionMetrics;
+  rerouteOption: OptionMetrics;
+  recommendation: "REROUTE" | "WAIT";
+  timeSavedMin: number; // waitOption.timeMin - rerouteOption.timeMin (positive = reroute is faster)
+  detourKm: number;     // rerouteOption.distKm - waitOption.distKm
+  fuelDiffLiters: number; // waitOption.fuelLiters - rerouteOption.fuelLiters (positive = reroute saves fuel)
+  co2DiffKg: number;      // waitOption.co2Kg - rerouteOption.co2Kg
+  summaryReason: string;
+  vehicles: WaitRerouteVehicleDetail[];
 }

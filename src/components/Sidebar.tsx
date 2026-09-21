@@ -1,11 +1,11 @@
-import { History, LayoutDashboard, Map, Package, Settings, Waypoints } from "lucide-react";
+import { GitCompare, History, LayoutDashboard, Map, Package, Settings, Waypoints } from "lucide-react";
 
 export type View = "dashboard" | "deliveries" | "plan" | "tracking" | "history" | "settings";
 
 const ITEMS: { id: View; label: string; icon: typeof Map }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "deliveries", label: "My Deliveries", icon: Package },
-  { id: "plan", label: "Route Plan", icon: Map },
+  { id: "plan", label: "Wait vs Reroute", icon: GitCompare },
   { id: "tracking", label: "Live Tracking", icon: Waypoints },
   { id: "history", label: "History", icon: History },
   { id: "settings", label: "Settings", icon: Settings },

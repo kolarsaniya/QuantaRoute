@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import type { Incident, LatLng, Stop, VehicleRoute } from "../lib/types";
 import { DEPOT, haversineKm } from "../lib/network";
+import { getCachedRouteGeometry } from "../lib/osrm";
 
 interface StopMarker {
   color: string;
@@ -13,6 +14,7 @@ interface Props {
   stopMarkers: Record<number, StopMarker>;
   incidents: Incident[];
   routes: VehicleRoute[];
+  altRoutes?: VehicleRoute[];
   addMode: boolean;
   onAddStop: (lat: number, lng: number) => void;
   /** vehicleId → progress along its own route (0 = at depot) */
@@ -105,7 +107,7 @@ const incidentIcon = (kind: "traffic" | "accident") => {
 const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
-export function MapView({ stops, stopMarkers, incidents, routes, addMode, onAddStop, trackProgress }: Props) {
+export function MapView({ stops, stopMarkers, incidents, routes, altRoutes, addMode, onAddStop, trackProgress }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const routesLayer = useRef<L.LayerGroup | null>(null);
@@ -220,10 +222,30 @@ export function MapView({ stops, stopMarkers, incidents, routes, addMode, onAddS
     const layer = routesLayer.current;
     if (!layer) return;
     layer.clearLayers();
+
+    // Alternate comparison route (dashed line following actual roads)
+    if (altRoutes && altRoutes.length > 0) {
+      altRoutes.forEach((r) => {
+        const defaultPts = [DEPOT, ...r.stopIds.map((id) => stops.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
+        const pts: LatLng[] = r.geometry ?? getCachedRouteGeometry(defaultPts) ?? defaultPts;
+        if (pts.length < 2) return;
+        const latlngs = pts.map((p) => [p.lat, p.lng] as [number, number]);
+        const altLine = L.polyline(latlngs, {
+          color: r.color,
+          weight: 3.5,
+          opacity: 0.6,
+          dashArray: "6 8",
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(layer);
+        altLine.bindTooltip(`Alternate (Waiting / Reroute): Truck ${r.label} (${r.timeMin.toFixed(0)} min)`, { sticky: true });
+      });
+    }
+
+    // Active primary routes (following actual roads)
     routes.forEach((r) => {
-      const pts: LatLng[] =
-        r.geometry ??
-        [DEPOT, ...r.stopIds.map((id) => stops.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
+      const defaultPts = [DEPOT, ...r.stopIds.map((id) => stops.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
+      const pts: LatLng[] = r.geometry ?? getCachedRouteGeometry(defaultPts) ?? defaultPts;
       if (pts.length < 2) return;
       const latlngs = pts.map((p) => [p.lat, p.lng] as [number, number]);
 
@@ -255,7 +277,7 @@ export function MapView({ stops, stopMarkers, incidents, routes, addMode, onAddS
     layer.eachLayer((l) => {
       if (l instanceof L.Polyline && (l.options as L.PolylineOptions).className === "qr-route") l.bringToFront();
     });
-  }, [routes, stops]);
+  }, [routes, altRoutes, stops]);
 
   // live-tracking truck markers
   useEffect(() => {
@@ -267,9 +289,8 @@ export function MapView({ stops, stopMarkers, incidents, routes, addMode, onAddS
       if (r.stopIds.length === 0) return;
       const p = trackProgress[r.vehicleId];
       if (p == null) return;
-      const pts: LatLng[] =
-        r.geometry ??
-        [DEPOT, ...r.stopIds.map((id) => stops.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
+      const defaultPts = [DEPOT, ...r.stopIds.map((id) => stops.find((s) => s.id === id)).filter((s): s is Stop => !!s), DEPOT];
+      const pts: LatLng[] = r.geometry ?? getCachedRouteGeometry(defaultPts) ?? defaultPts;
       if (pts.length < 2) return;
       const pos = pointAlong(pts, p);
       L.marker([pos.lat, pos.lng], { icon: truckIcon(r.color, r.label), zIndexOffset: 900, interactive: false }).addTo(

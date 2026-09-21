@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { History, LayoutDashboard, Map, MoreHorizontal, Package, Settings, Waypoints, X } from "lucide-react";
+import { GitCompare, History, LayoutDashboard, MoreHorizontal, Package, Settings, Waypoints, X } from "lucide-react";
 import type { View } from "./Sidebar";
 
-const TABS: { id: View; label: string; icon: typeof Map }[] = [
+const TABS: { id: View; label: string; icon: typeof GitCompare }[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard },
   { id: "deliveries", label: "Stops", icon: Package },
+  { id: "plan", label: "Wait/Reroute", icon: GitCompare },
   { id: "tracking", label: "Track", icon: Waypoints },
-  { id: "plan", label: "Plan", icon: Map },
 ];
 
 export function BottomNav({ view, setView }: { view: View; setView: (v: View) => void }) {

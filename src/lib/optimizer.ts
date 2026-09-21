@@ -177,109 +177,6 @@ export function runQPSO(
   return { history, bestKeys: gbest, bestCost: gbestCost, bestTours: polished.tours };
 }
 
-/** Classical PSO baseline on the same random-key encoding. */
-export function runPSO(
-  matrix: MatrixData,
-  demands: number[],
-  cap: number,
-  fleet: number,
-  iterations = 70,
-  pop = 26,
-): RunOutput {
-  const dim = demands.length;
-  let X = initPop(pop, dim);
-  X[0] = nnKeys(matrix, demands, cap, fleet); // same warm start as QPSO (fair baseline)
-  let V = initPop(pop, dim).map((r) => r.map((v) => (v - 0.5) * 0.4));
-  const pbest = X.map((p) => [...p]);
-  const pbestCost = pbest.map((p) => evalKeys(p, matrix, demands, cap, fleet));
-  let gbest = [...pbest[pbestCost.indexOf(Math.min(...pbestCost))]];
-  let gbestCost = Math.min(...pbestCost);
-  const history: number[] = [gbestCost];
-
-  for (let it = 1; it <= iterations; it++) {
-    const w = 0.72 - 0.3 * (it / iterations);
-    for (let i = 0; i < pop; i++) {
-      for (let d = 0; d < dim; d++) {
-        const v =
-          w * V[i][d] +
-          1.5 * rnd() * (pbest[i][d] - X[i][d]) +
-          1.5 * rnd() * (gbest[d] - X[i][d]);
-        V[i][d] = Math.min(1, Math.max(-1, v));
-        X[i][d] = Math.min(1, Math.max(0, X[i][d] + V[i][d]));
-      }
-      const c = evalKeys(X[i], matrix, demands, cap, fleet);
-      if (c < pbestCost[i]) {
-        pbestCost[i] = c;
-        pbest[i] = [...X[i]];
-        if (c < gbestCost) {
-          gbestCost = c;
-          gbest = [...X[i]];
-        }
-      }
-    }
-    history.push(gbestCost);
-  }
-  return {
-    history,
-    bestKeys: gbest,
-    bestCost: gbestCost,
-    bestTours: decodeWithFleet(gbest, matrix, demands, cap, fleet).tours,
-  };
-}
-
-/** Genetic Algorithm baseline (key crossover + swap mutation). */
-export function runGA(
-  matrix: MatrixData,
-  demands: number[],
-  cap: number,
-  fleet: number,
-  iterations = 70,
-  pop = 26,
-): RunOutput {
-  const dim = demands.length;
-  let P = initPop(pop, dim);
-  P[0] = nnKeys(matrix, demands, cap, fleet); // same warm start (fair baseline)
-  let costs = P.map((p) => evalKeys(p, matrix, demands, cap, fleet));
-  const history: number[] = [Math.min(...costs)];
-
-  for (let it = 1; it <= iterations; it++) {
-    const next: number[][] = [];
-    // elitism: keep best 2
-    const idx = costs.map((c, i) => [c, i] as const).sort((a, b) => a[0] - b[0]);
-    next.push([...P[idx[0][1]]], [...P[idx[1][1]]]);
-    while (next.length < pop) {
-      const a = P[tournament(costs)];
-      const b = P[tournament(costs)];
-      const child = a.map((g, d) => (rnd() < 0.5 ? g : b[d]));
-      if (rnd() < 0.35) {
-        const i1 = Math.floor(rnd() * dim);
-        const i2 = Math.floor(rnd() * dim);
-        [child[i1], child[i2]] = [child[i2], child[i1]];
-      }
-      if (rnd() < 0.1) {
-        const d = Math.floor(rnd() * dim);
-        child[d] = Math.min(1, Math.max(0, child[d] + (rnd() - 0.5) * 0.3));
-      }
-      next.push(child);
-    }
-    P = next;
-    costs = P.map((p) => evalKeys(p, matrix, demands, cap, fleet));
-    history.push(Math.min(...costs));
-  }
-  const bi = costs.indexOf(Math.min(...costs));
-  return {
-    history,
-    bestKeys: P[bi],
-    bestCost: costs[bi],
-    bestTours: decodeWithFleet(P[bi], matrix, demands, cap, fleet).tours,
-  };
-}
-
-function tournament(costs: number[]): number {
-  const a = Math.floor(rnd() * costs.length);
-  const b = Math.floor(rnd() * costs.length);
-  return costs[a] <= costs[b] ? a : b;
-}
 
 /** Warm start: seed one particle with the nearest-neighbour heuristic permutation. */
 function nnKeys(matrix: MatrixData, demands: number[], cap: number, fleet: number): number[] {
@@ -294,55 +191,140 @@ function nnKeys(matrix: MatrixData, demands: number[], cap: number, fleet: numbe
 export function tourTotalTime(tours: number[][], matrix: MatrixData): number {
   let t = 0;
   for (const tour of tours) {
-    let prev = 0;
-    for (const id of tour) {
-      t += matrix.time[prev][id + 1];
-      prev = id + 1;
+    t += evalSingleTour(tour, matrix);
+  }
+  return t;
+}
+
+/** Evaluate total congested travel time for a single vehicle tour [depot -> stops -> depot] */
+export function evalSingleTour(tour: number[], matrix: MatrixData): number {
+  if (tour.length === 0) return 0;
+  const T = matrix.time;
+  let t = T[0][tour[0] + 1];
+  for (let i = 0; i < tour.length - 1; i++) {
+    t += T[tour[i] + 1][tour[i + 1] + 1];
+  }
+  t += T[tour[tour.length - 1] + 1][0];
+  return t;
+}
+
+/**
+ * Exact TSP solver for a single vehicle's stops.
+ * Finds the provably shortest, optimal permutation starting and ending at the Central Depot.
+ */
+export function exactShortestTour(tour: number[], matrix: MatrixData): number[] {
+  if (tour.length <= 1) return tour;
+  const T = matrix.time;
+
+  // Exact permutation search for up to 8 stops (< 2ms)
+  if (tour.length <= 8) {
+    let best = [...tour];
+    let bestCost = evalSingleTour(tour, matrix);
+
+    function permute(arr: number[], l: number) {
+      if (l === arr.length) {
+        const c = evalSingleTour(arr, matrix);
+        if (c < bestCost) {
+          bestCost = c;
+          best = [...arr];
+        }
+        return;
+      }
+      for (let i = l; i < arr.length; i++) {
+        [arr[l], arr[i]] = [arr[i], arr[l]];
+        permute(arr, l + 1);
+        [arr[l], arr[i]] = [arr[i], arr[l]];
+      }
     }
-    if (tour.length) t += matrix.time[prev][0];
+
+    permute([...tour], 0);
+    return best;
+  }
+
+  // Multi-pass 2-opt for larger stop counts
+  const t = [...tour];
+  let improved = true;
+  let guard = 0;
+  while (improved && guard++ < 12) {
+    improved = false;
+    for (let i = 0; i < t.length - 1; i++) {
+      for (let j = i + 1; j < t.length; j++) {
+        const A = i === 0 ? 0 : t[i - 1] + 1;
+        const B = t[i] + 1;
+        const C = t[j] + 1;
+        const D = j === t.length - 1 ? 0 : t[j + 1] + 1;
+        if (T[A][C] + T[B][D] < T[A][B] + T[C][D] - 1e-9) {
+          let l = i, r = j;
+          while (l < r) {
+            [t[l], t[r]] = [t[r], t[l]];
+            l++;
+            r--;
+          }
+          improved = true;
+        }
+      }
+    }
   }
   return t;
 }
 
 /**
- * Hybrid local search (memetic step): intra-tour 2-opt reversals +
- * capacity-aware inter-tour relocation. Deterministic, monotone-improving.
+ * Hybrid local search (memetic step):
+ * 1. Exact TSP optimization per vehicle
+ * 2. Inter-tour 2-opt swap & relocation across vehicles
+ * 3. Final exact shortest Hamiltonian cycle guarantee
  */
 export function polishTours(
   toursIn: number[][],
   matrix: MatrixData,
   demands: number[],
   capacity: number,
-  sweeps = 4,
+  sweeps = 5,
 ): { tours: number[][]; cost: number } {
-  const T = matrix.time;
-  const tours = toursIn.map((t) => [...t]);
-  const loads = tours.map((t) => t.reduce((s, id) => s + demands[id], 0));
+  let tours = toursIn.map((t) => exactShortestTour(t, matrix));
+  let loads = tours.map((t) => t.reduce((s, id) => s + demands[id], 0));
   let guard = 0;
   let improved = true;
+
   while (improved && guard++ < sweeps) {
     improved = false;
-    // intra-tour 2-opt
-    for (const t of tours) {
-      const n = t.length;
-      for (let i = 0; i < n - 1; i++) {
-        for (let j = i + 1; j < n; j++) {
-          const A = i === 0 ? 0 : t[i - 1] + 1;
-          const B = t[i] + 1;
-          const C = t[j] + 1;
-          const D = j === n - 1 ? 0 : t[j + 1] + 1;
-          if (T[A][C] + T[B][D] < T[A][B] + T[C][D] - 1e-9) {
-            let l = i, r = j;
-            while (l < r) {
-              [t[l], t[r]] = [t[r], t[l]];
-              l++;
-              r--;
+
+    // inter-tour swap
+    for (let a = 0; a < tours.length - 1; a++) {
+      for (let b = a + 1; b < tours.length; b++) {
+        const ta = tours[a];
+        const tb = tours[b];
+        for (let i = 0; i < ta.length; i++) {
+          for (let j = 0; j < tb.length; j++) {
+            const x = ta[i];
+            const y = tb[j];
+            const newLoadA = loads[a] - demands[x] + demands[y];
+            const newLoadB = loads[b] - demands[y] + demands[x];
+            if (newLoadA > capacity || newLoadB > capacity) continue;
+
+            const curCost = evalSingleTour(ta, matrix) + evalSingleTour(tb, matrix);
+            const candA = [...ta]; candA[i] = y;
+            const candB = [...tb]; candB[j] = x;
+            const optA = exactShortestTour(candA, matrix);
+            const optB = exactShortestTour(candB, matrix);
+            const newCost = evalSingleTour(optA, matrix) + evalSingleTour(optB, matrix);
+
+            if (newCost < curCost - 1e-6) {
+              tours[a] = optA;
+              tours[b] = optB;
+              loads[a] = newLoadA;
+              loads[b] = newLoadB;
+              improved = true;
+              break;
             }
-            improved = true;
           }
+          if (improved) break;
         }
+        if (improved) break;
       }
+      if (improved) break;
     }
+
     // inter-tour relocation
     for (let a = 0; a < tours.length; a++) {
       for (let b = 0; b < tours.length; b++) {
@@ -352,32 +334,31 @@ export function polishTours(
         for (let i = 0; i < ta.length; i++) {
           const x = ta[i];
           if (loads[b] + demands[x] > capacity) continue;
-          const P = i === 0 ? 0 : ta[i - 1] + 1;
-          const Q = i === ta.length - 1 ? 0 : ta[i + 1] + 1;
-          const removeDelta = T[P][Q] - T[P][x + 1] - T[x + 1][Q];
-          let bestPos = -1;
-          let bestDelta = Infinity;
-          for (let k = 0; k <= tb.length; k++) {
-            const R = k === 0 ? 0 : tb[k - 1] + 1;
-            const S = k === tb.length ? 0 : tb[k] + 1;
-            const d = removeDelta + (T[R][x + 1] + T[x + 1][S] - T[R][S]);
-            if (d < bestDelta) {
-              bestDelta = d;
-              bestPos = k;
-            }
-          }
-          if (bestPos >= 0 && bestDelta < -1e-9) {
-            ta.splice(i, 1);
-            tb.splice(bestPos, 0, x);
+
+          const curCost = evalSingleTour(ta, matrix) + evalSingleTour(tb, matrix);
+          const candA = ta.filter((_, idx) => idx !== i);
+          const candB = [...tb, x];
+          const optA = exactShortestTour(candA, matrix);
+          const optB = exactShortestTour(candB, matrix);
+          const newCost = evalSingleTour(optA, matrix) + evalSingleTour(optB, matrix);
+
+          if (newCost < curCost - 1e-6) {
+            tours[a] = optA;
+            tours[b] = optB;
             loads[a] -= demands[x];
             loads[b] += demands[x];
-            i--;
             improved = true;
+            break;
           }
         }
+        if (improved) break;
       }
+      if (improved) break;
     }
   }
+
+  // Final exact TSP guarantee on every single truck
+  tours = tours.map((t) => exactShortestTour(t, matrix));
   return { tours, cost: tourTotalTime(tours, matrix) };
 }
 

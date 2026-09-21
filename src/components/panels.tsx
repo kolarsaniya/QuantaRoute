@@ -254,43 +254,67 @@ export function BestRoutePanel({
 }
 
 /* ---------------- traffic alert ---------------- */
-export function TrafficAlertCard({ alert, onView }: { alert: AlertData | null; onView: () => void }) {
+export function TrafficAlertCard({
+  alert,
+  onView,
+  waitMin,
+  rerouteMin,
+  timeSaved,
+}: {
+  alert: AlertData | null;
+  onView: () => void;
+  waitMin?: number;
+  rerouteMin?: number;
+  timeSaved?: number;
+}) {
   if (!alert) return null;
   const worse = alert.next > alert.prev;
   return (
-    <section className="anim-pop rounded-xl border border-red/30 bg-red/5 p-4">
+    <section className="anim-pop rounded-xl border border-red/30 bg-red/5 p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red text-white">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red text-white shadow-sm">
           {alert.kind === "accident" ? <X size={16} /> : <Truck size={16} />}
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[14px] font-bold text-red">
-            {alert.kind === "accident" ? "Accident Alert" : "Traffic Alert"}
-          </h3>
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="font-display text-[14px] font-bold text-red">
+              {alert.kind === "accident" ? "Accident Alert" : "Traffic Disruption"}
+            </h3>
+            {timeSaved != null && timeSaved > 0 && (
+              <span className="rounded bg-green text-white px-1.5 py-0.5 font-mono text-[9px] font-bold">
+                QPSO saves {timeSaved.toFixed(0)}m
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-[12px] leading-snug text-ink-soft">
             {alert.kind === "accident" ? `Road blocked near ${alert.place}.` : `Heavy congestion near ${alert.place}.`}{" "}
-            Fleets were re-routed automatically.
+            Calculated WAIT vs. REROUTE options live.
           </p>
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-center gap-4 rounded-lg border border-red/20 bg-white px-4 py-2.5">
-        <div className="text-center">
-          <p className="text-[10px] font-semibold text-ink-faint">Previous Time</p>
-          <p className="font-mono text-[15px] font-bold text-ink">{alert.prev.toFixed(0)} min</p>
-        </div>
-        <ArrowRight size={16} className="text-ink-faint" />
-        <div className="text-center">
-          <p className="text-[10px] font-semibold text-ink-faint">New Time</p>
-          <p className={`font-mono text-[15px] font-bold ${worse ? "text-red" : "text-green-deep"}`}>
-            {alert.next.toFixed(0)} min
+
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-red/20 bg-white p-2.5 text-center">
+        <div className="border-r border-line/60 pr-2">
+          <p className="text-[10px] font-semibold text-ink-faint">Option: WAIT</p>
+          <p className="font-mono text-[14px] font-bold text-amber">
+            {waitMin != null ? `${waitMin.toFixed(0)} min` : `${alert.prev.toFixed(0)} min`}
           </p>
+          <p className="font-mono text-[9px] text-ink-faint">crawl in traffic</p>
+        </div>
+        <div className="pl-2">
+          <p className="text-[10px] font-semibold text-ink-faint">Option: REROUTE</p>
+          <p className="font-mono text-[14px] font-bold text-green-deep">
+            {rerouteMin != null ? `${rerouteMin.toFixed(0)} min` : `${alert.next.toFixed(0)} min`}
+          </p>
+          <p className="font-mono text-[9px] text-green-deep font-semibold">QPSO dynamic detour</p>
         </div>
       </div>
+
       <button
         onClick={onView}
-        className="mt-3 w-full rounded-lg bg-red py-2.5 font-display text-[12px] font-bold tracking-wide text-white shadow-[0_3px_0_#b32b30] transition active:translate-y-0.5 active:shadow-none"
+        className="mt-3 w-full rounded-lg bg-green py-2.5 font-display text-[12px] font-bold tracking-wide text-white shadow-[0_3px_0_#0c7a37] transition hover:bg-green-deep active:translate-y-0.5 active:shadow-none flex items-center justify-center gap-1.5"
       >
-        VIEW NEW ROUTE
+        <Navigation size={13} /> COMPARE WAIT & REROUTE
       </button>
     </section>
   );

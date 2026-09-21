@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Atom, Dna, Gauge, MapPinned, Minus, Pause, Play, Plus, Route, Trash2, X } from "lucide-react";
-import type { Algorithm, Incident, RunEntry, Stop, VehicleRoute } from "../lib/types";
+import { Atom, MapPinned, Minus, Pause, Play, Plus, Route, Trash2, X } from "lucide-react";
+import type { Incident, RunEntry, Stop, VehicleRoute } from "../lib/types";
 import { MapView } from "./MapView";
 
 /* ---------------- My Deliveries ---------------- */
@@ -323,43 +323,62 @@ export function HistoryView({ log }: { log: RunEntry[] }) {
 }
 
 /* ---------------- Settings ---------------- */
-const ALGOS: { id: Algorithm; name: string; desc: string; icon: typeof Atom }[] = [
-  { id: "QPSO", name: "Quantum PSO", desc: "Quantum Particle Swarm — strongest global search (default).", icon: Atom },
-  { id: "PSO", name: "Classical PSO", desc: "Standard particle swarm velocity update baseline.", icon: Gauge },
-  { id: "GA", name: "Genetic Algorithm", desc: "Evolutionary crossover + swap mutation baseline.", icon: Dna },
-];
-
 export function SettingsView({
-  algorithm,
-  setAlgorithm,
   roadSnap,
   setRoadSnap,
 }: {
-  algorithm: Algorithm;
-  setAlgorithm: (a: Algorithm) => void;
   roadSnap: boolean;
   setRoadSnap: (b: boolean) => void;
 }) {
   return (
     <div className="anim-up space-y-4">
+      {/* QPSO Dedicated Engine Console */}
       <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
-        <h2 className="font-display text-lg font-bold text-ink">Solver engine</h2>
-        <p className="text-[12px] text-ink-faint">Choose which metaheuristic dispatches your fleet.</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {ALGOS.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setAlgorithm(a.id)}
-              className={`rounded-xl border p-3 text-left transition ${
-                algorithm === a.id ? "border-green bg-green-tint shadow-[0_3px_0_#16a34a]" : "border-line bg-white hover:border-ink"
-              }`}
-            >
-              <a.icon size={18} className={algorithm === a.id ? "text-green-deep" : "text-ink-faint"} />
-              <p className="mt-2 font-display text-[13px] font-bold text-ink">{a.name}</p>
-              <p className="mt-1 text-[11px] leading-snug text-ink-soft">{a.desc}</p>
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green text-white shadow-sm">
+              <Atom size={20} />
+            </span>
+            <div>
+              <h2 className="font-display text-base font-bold text-ink">Solver Engine: QPSO</h2>
+              <p className="text-[12px] text-ink-faint">Quantum-Inspired Particle Swarm Optimization (Exclusive Core Engine)</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-green-tint px-2.5 py-1 font-mono text-[10px] font-bold text-green-deep">
+            Active Core
+          </span>
         </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-line/70 bg-paper/60 p-3">
+            <p className="text-[11px] font-semibold text-ink-soft">Quantum State Equation</p>
+            <p className="mt-1 font-mono text-[11px] text-green-deep font-bold">
+              X = P ± α · |mbest - X| · ln(1/u)
+            </p>
+            <p className="mt-1 text-[10px] text-ink-faint">Wave-function delta potential well</p>
+          </div>
+
+          <div className="rounded-lg border border-line/70 bg-paper/60 p-3">
+            <p className="text-[11px] font-semibold text-ink-soft">α-Annealing Parameter</p>
+            <p className="mt-1 font-mono text-[11px] text-ink font-bold">
+              0.95 → 0.50 (linear cooling)
+            </p>
+            <p className="mt-1 text-[10px] text-ink-faint">Contraction-expansion annealing</p>
+          </div>
+
+          <div className="rounded-lg border border-line/70 bg-paper/60 p-3">
+            <p className="text-[11px] font-semibold text-ink-soft">Memetic Hybrid Step</p>
+            <p className="mt-1 font-mono text-[11px] text-ink font-bold">
+              Intra-tour 2-Opt + Inter-relocate
+            </p>
+            <p className="mt-1 text-[10px] text-ink-faint">Monotone improving local search</p>
+          </div>
+        </div>
+
+        <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
+          All fleet routing, traffic incident adaptation, and dynamic wait-vs-reroute comparisons are computed using
+          pure QPSO with continuous random-key customer sequence encoding.
+        </p>
       </section>
 
       <section className="flex items-center justify-between rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
