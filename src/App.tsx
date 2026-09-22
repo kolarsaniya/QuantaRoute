@@ -9,6 +9,10 @@ import { ControlDock } from "./components/ControlDock";
 import { WaitRerouteComparator } from "./components/WaitRerouteComparator";
 import { ModelSheet } from "./components/ModelSheet";
 import { DeliveriesView, DeliveryModal, HistoryView, LiveTrackingView, SettingsView } from "./components/views";
+import { FleetManagerDashboard } from "./components/FleetManagerDashboard";
+import { FleetVehiclesView } from "./components/FleetVehiclesView";
+import { FleetManifestView } from "./components/FleetManifestView";
+import { FleetMaintenanceView } from "./components/FleetMaintenanceView";
 import { HelpModal } from "./components/HelpModal";
 import { Toast, type ToastData } from "./components/Toast";
 import { buildMatrix, capacityFor, DEPOT, fleetColor, STOPS } from "./lib/network";
@@ -59,12 +63,22 @@ function scenarioSeed(stopList: Stop[], incs: Incident[], fleetSize: number): nu
 }
 
 export default function App() {
+  const [role, setRole] = useState<"admin" | "fleetmanager">("admin");
   const [view, setView] = useState<View>("dashboard");
   const [fleet, setFleet] = useState(3);
   const [stops, setStops] = useState<Stop[]>(STOPS);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [addMode, setAddMode] = useState(false);
   const [roadSnap, setRoadSnap] = useState(true);
+
+  const handleRoleChange = useCallback((newRole: "admin" | "fleetmanager") => {
+    setRole(newRole);
+    if (newRole === "fleetmanager") {
+      setView("fleet-dashboard");
+    } else {
+      setView("dashboard");
+    }
+  }, []);
 
   // WAIT vs REROUTE state
   const [activeRouteMode, setActiveRouteMode] = useState<"reroute" | "wait">("reroute");
@@ -361,15 +375,21 @@ export default function App() {
   );
 
   return (
-    <div className="qr-bg flex min-h-dvh flex-col">
-      <TopBar incidents={incidents} onHelp={() => setHelpOpen(true)} />
+    <div className="qr-bg flex min-h-dvh flex-col w-full max-w-full overflow-x-hidden">
+      <TopBar
+        incidents={incidents}
+        onHelp={() => setHelpOpen(true)}
+        onToast={pushToast}
+        role={role}
+        onRoleChange={handleRoleChange}
+      />
 
-      <div className="flex flex-1 flex-col lg:flex-row">
-        <Sidebar view={view} setView={setView} />
+      <div className="flex flex-1 flex-col lg:flex-row w-full max-w-full min-w-0">
+        <Sidebar view={view} setView={setView} role={role} />
 
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-4 pb-24 lg:px-6 lg:py-5 lg:pb-8">
+        <main className="mx-auto w-full max-w-[1400px] min-w-0 flex-1 px-3 py-3 pb-24 sm:px-4 sm:py-4 lg:px-6 lg:py-5 lg:pb-8 overflow-x-hidden">
           {view === "dashboard" && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               {/* headline + add delivery */}
               <div className="anim-up flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -394,8 +414,8 @@ export default function App() {
 
               <InfoCards stops={stops} fleet={fleet} />
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                <div className="space-y-4">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] min-w-0">
+                <div className="space-y-4 min-w-0">
                   <div className="relative isolate z-0 h-[52dvh] min-h-[320px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[520px]">
                     <MapView
                       stops={stops}
@@ -431,7 +451,7 @@ export default function App() {
                 </div>
 
                 {/* mobile: alerts → simulate → route detail; desktop: alerts → route → simulate */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 min-w-0">
                   <div className="order-1">
                     <TrafficAlertCard
                       alert={alert}
@@ -458,7 +478,7 @@ export default function App() {
           )}
 
           {view === "deliveries" && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px] min-w-0">
               <div className="relative isolate z-0 h-[54dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)]">
                 <MapView
                   stops={stops}
@@ -480,8 +500,59 @@ export default function App() {
           )}
 
           {view === "compare" && (
-            <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-              <div className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] min-w-0">
+              <div className="space-y-4 min-w-0">
+                {/* Map view at top — matching Dashboard, Deliveries, and Tracking */}
+                <div className="relative isolate z-0 h-[50dvh] min-h-[300px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[480px]">
+                  <MapView
+                    stops={stops}
+                    stopMarkers={stopMarkers}
+                    incidents={incidents}
+                    routes={activeRoutes}
+                    altRoutes={altRoutes}
+                    addMode={false}
+                    onAddStop={handleMapAdd}
+                  />
+
+                  {/* Active Route Mode Indicator overlay on map */}
+                  <div className="absolute top-3 right-3 z-[500] flex items-center gap-1.5 rounded-lg border border-line/70 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
+                    <span className="text-[11px] font-semibold text-ink-soft">Active View:</span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase ${
+                        activeRouteMode === "reroute" ? "bg-green text-white" : "bg-amber text-ink"
+                      }`}
+                    >
+                      {activeRouteMode}
+                    </span>
+                    <button
+                      onClick={() => setActiveRouteMode((m) => (m === "reroute" ? "wait" : "reroute"))}
+                      className="ml-1 text-[11px] text-ink-faint hover:text-ink underline transition font-medium"
+                    >
+                      switch to {activeRouteMode === "reroute" ? "wait" : "reroute"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Comparator Details */}
+                {waitVsReroute ? (
+                  <WaitRerouteComparator
+                    comparison={waitVsReroute}
+                    activeMode={activeRouteMode}
+                    onSelectMode={setActiveRouteMode}
+                    onAddTraffic={() => addIncident("traffic")}
+                    onAddAccident={() => addIncident("accident")}
+                    onClearIncidents={clearIncidents}
+                    solveMs={solveMs}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-line bg-card p-6 text-center text-[13px] text-ink-faint">
+                    Calculating WAIT vs REROUTE options…
+                  </div>
+                )}
+              </div>
+
+              {/* Side controls (stacked neatly below on mobile, right column on desktop) */}
+              <div className="space-y-4 min-w-0">
                 <ControlDock
                   fleet={fleet}
                   setFleet={setFleet}
@@ -497,22 +568,6 @@ export default function App() {
                 />
                 <ModelSheet />
               </div>
-
-              {waitVsReroute ? (
-                <WaitRerouteComparator
-                  comparison={waitVsReroute}
-                  activeMode={activeRouteMode}
-                  onSelectMode={setActiveRouteMode}
-                  onAddTraffic={() => addIncident("traffic")}
-                  onAddAccident={() => addIncident("accident")}
-                  onClearIncidents={clearIncidents}
-                  solveMs={solveMs}
-                />
-              ) : (
-                <div className="rounded-xl border border-line bg-card p-6 text-center text-[13px] text-ink-faint">
-                  Calculating WAIT vs REROUTE options…
-                </div>
-              )}
             </div>
           )}
 
@@ -526,6 +581,44 @@ export default function App() {
             <SettingsView roadSnap={roadSnap} setRoadSnap={setRoadSnap} />
           )}
 
+          {/* Fleet Manager Views */}
+          {view === "fleet-dashboard" && (
+            <FleetManagerDashboard
+              stops={stops}
+              stopMarkers={stopMarkers}
+              incidents={incidents}
+              routes={activeRoutes}
+              altRoutes={altRoutes}
+              solution={safeSolution}
+              waitVsReroute={waitVsReroute}
+              onNavigateTab={(tab) => setView(tab)}
+              onAddTraffic={() => addIncident("traffic")}
+              onAddAccident={() => addIncident("accident")}
+              onClearIncidents={clearIncidents}
+              onToast={pushToast}
+            />
+          )}
+
+          {view === "fleet-vehicles" && (
+            <FleetVehiclesView
+              routes={activeRoutes}
+              stops={stops}
+              onToast={pushToast}
+            />
+          )}
+
+          {view === "fleet-manifest" && (
+            <FleetManifestView
+              routes={activeRoutes}
+              stops={stops}
+              onToast={pushToast}
+            />
+          )}
+
+          {view === "fleet-maintenance" && (
+            <FleetMaintenanceView onToast={pushToast} />
+          )}
+
           <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 font-mono text-[10px] text-ink-faint">
             <span>QuantaRoute · Quantum-Inspired PSO</span>
             <span>
@@ -535,7 +628,7 @@ export default function App() {
         </main>
       </div>
 
-      <BottomNav view={view} setView={setView} />
+      <BottomNav view={view} setView={setView} role={role} />
 
       {pendingStop && (
         <DeliveryModal

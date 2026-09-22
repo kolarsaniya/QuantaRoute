@@ -59,9 +59,9 @@ export function WaitRerouteComparator({
   const maxFuel = Math.max(waitOption.fuelLiters, rerouteOption.fuelLiters, 1);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 w-full max-w-full">
       {/* Top Header */}
-      <div className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
+      <div className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)] min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green text-white shadow-sm">
@@ -392,11 +392,11 @@ export function WaitRerouteComparator({
         <div className="space-y-3">
           {/* Time bar */}
           <div>
-            <div className="flex justify-between text-[11px] font-semibold text-ink-soft mb-1">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-ink-soft mb-1 gap-1">
+              <span className="flex items-center gap-1 shrink-0">
                 <Clock size={12} /> Total Travel Time
               </span>
-              <span className="font-mono">
+              <span className="font-mono text-[10px] sm:text-[11px]">
                 WAIT: {waitOption.timeMin.toFixed(0)}m vs REROUTE: {rerouteOption.timeMin.toFixed(0)}m
               </span>
             </div>
@@ -418,11 +418,11 @@ export function WaitRerouteComparator({
 
           {/* Distance bar */}
           <div>
-            <div className="flex justify-between text-[11px] font-semibold text-ink-soft mb-1">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-ink-soft mb-1 gap-1">
+              <span className="flex items-center gap-1 shrink-0">
                 <Navigation size={12} /> Total Fleet Distance
               </span>
-              <span className="font-mono">
+              <span className="font-mono text-[10px] sm:text-[11px]">
                 WAIT: {waitOption.distKm.toFixed(1)}km vs REROUTE: {rerouteOption.distKm.toFixed(1)}km
               </span>
             </div>
@@ -444,11 +444,11 @@ export function WaitRerouteComparator({
 
           {/* Fuel bar */}
           <div>
-            <div className="flex justify-between text-[11px] font-semibold text-ink-soft mb-1">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-ink-soft mb-1 gap-1">
+              <span className="flex items-center gap-1 shrink-0">
                 <Fuel size={12} /> Fuel & Emissions
               </span>
-              <span className="font-mono">
+              <span className="font-mono text-[10px] sm:text-[11px]">
                 WAIT: {waitOption.fuelLiters.toFixed(1)}L vs REROUTE: {rerouteOption.fuelLiters.toFixed(1)}L
               </span>
             </div>
@@ -480,7 +480,7 @@ export function WaitRerouteComparator({
       </section>
 
       {/* Vehicle-by-Vehicle Breakdown */}
-      <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
+      <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)] min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h3 className="font-display text-[14px] font-bold text-ink">
@@ -503,8 +503,8 @@ export function WaitRerouteComparator({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[12px]">
+        <div className="overflow-x-auto min-w-0 max-w-full -mx-1 px-1">
+          <table className="min-w-[520px] w-full text-left text-[12px]">
             <thead>
               <tr className="border-b border-line bg-paper font-mono text-[10px] uppercase tracking-wide text-ink-faint">
                 <th className="px-3 py-2">Truck</th>

@@ -41,7 +41,7 @@ export async function fetchLegGeometry(a: LatLng & { id?: number }, b: LatLng & 
   try {
     const coords = `${a.lng.toFixed(6)},${a.lat.toFixed(6)};${b.lng.toFixed(6)},${b.lat.toFixed(6)}`;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const timer = setTimeout(() => ctrl.abort(), 1500);
     const res = await fetch(
       `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`,
       { signal: ctrl.signal },

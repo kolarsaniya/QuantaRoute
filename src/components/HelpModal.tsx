@@ -59,7 +59,7 @@ export function HelpModal({ open, onClose }: Props) {
                 QuantaRoute User Guide & Help
               </h2>
               <p className="text-[11px] text-ink-faint">
-                Understanding the QPSO engine, Start Hub, and WAIT vs. REROUTE decision analysis
+                Simple guide to managing trucks, deliveries, and choosing between waiting or rerouting
               </p>
             </div>
           </div>
@@ -82,7 +82,7 @@ export function HelpModal({ open, onClose }: Props) {
                 : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
-            <Warehouse size={14} /> Start & Depot
+            <Warehouse size={14} /> Start Hub & Stops
           </button>
           <button
             onClick={() => setActiveTab("qpso")}
@@ -92,7 +92,7 @@ export function HelpModal({ open, onClose }: Props) {
                 : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
-            <Atom size={14} /> QPSO Engine
+            <Sparkles size={14} /> Smart Route Engine
           </button>
           <button
             onClick={() => setActiveTab("wait-reroute")}
@@ -102,7 +102,7 @@ export function HelpModal({ open, onClose }: Props) {
                 : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
-            <GitCompare size={14} /> WAIT vs REROUTE
+            <GitCompare size={14} /> Wait vs. Reroute
           </button>
           <button
             onClick={() => setActiveTab("controls")}
@@ -112,7 +112,7 @@ export function HelpModal({ open, onClose }: Props) {
                 : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
-            <Navigation size={14} /> Deliveries & Controls
+            <Navigation size={14} /> How to Use
           </button>
         </nav>
 
@@ -124,50 +124,49 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-center gap-2">
                   <Warehouse size={16} className="text-green" />
                   <h3 className="font-display font-bold text-ink text-sm">
-                    Central Depot (The Start & Return Hub)
+                    The Central Hub (Start & Return Point)
                   </h3>
                 </div>
                 <p className="mt-1 text-[12px] text-ink-soft">
-                  Every vehicle tour in QuantaRoute forms a mathematically closed <strong>Hamiltonian Cycle</strong>.
-                  All delivery trucks leave from the <strong>Start Point (Central Depot)</strong>, visit their assigned customer drop locations along optimal OpenStreetMap road paths, and return to the Central Depot.
+                  Every truck in your fleet starts its day from the <strong>Central Hub (Cubbon Park)</strong> and returns back to the hub once all customer packages are delivered.
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-line bg-paper/50 p-3.5">
                   <p className="font-bold text-ink text-[12px] flex items-center gap-1.5">
-                    <MapPin size={13} className="text-green" /> Departure Leg
+                    <MapPin size={13} className="text-green" /> 1. Heading Out
                   </p>
                   <p className="mt-1 text-[11px] text-ink-faint">
-                    Trucks are loaded up to vehicle capacity and depart in a staggered queue from Cubbon Park junction along real drivable street segments.
+                    Trucks get loaded with packages up to their capacity and leave the central hub along real city streets.
                   </p>
                 </div>
                 <div className="rounded-xl border border-line bg-paper/50 p-3.5">
                   <p className="font-bold text-ink text-[12px] flex items-center gap-1.5">
-                    <CheckCircle2 size={13} className="text-green-deep" /> Return Leg
+                    <CheckCircle2 size={13} className="text-green-deep" /> 2. Returning Home
                   </p>
                   <p className="mt-1 text-[11px] text-ink-faint">
-                    After completing the final drop, the truck returns directly back to the Central Depot to finalize deliveries and replenish inventory.
+                    After dropping off the last package, each truck drives straight back to the hub to park or reload for the next trip.
                   </p>
                 </div>
               </div>
 
               <div className="rounded-xl border border-line bg-card p-4">
                 <h4 className="font-display font-bold text-ink text-[12px] uppercase tracking-wide">
-                  Route Representation on the Map
+                  What You See on the Map
                 </h4>
-                <ul className="mt-2 space-y-1.5 text-[12px]">
+                <ul className="mt-2 space-y-2 text-[12px]">
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-2 w-2 rounded-full bg-green shrink-0" />
-                    <span><strong>Green "Start · Central Depot" Pin</strong>: Centered directly at the road junction coordinate. All colored route polylines originate and finish at this pin.</span>
+                    <span><strong>Green "Start · Central Depot" Pin</strong>: The home base where all trucks start and return.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-2 w-2 rounded-full bg-blue-600 shrink-0" />
-                    <span><strong>Numbered Bubbles (1, 2, 3...)</strong>: Customer delivery stops colored according to the assigned truck.</span>
+                    <span><strong>Numbered Circles (1, 2, 3...)</strong>: Customer delivery stops in the exact order they should be visited.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                    <span><strong>Animated Dashed Paths</strong>: High-fidelity OpenStreetMap driving curves showing traffic direction arrows.</span>
+                    <span><strong>Colored Driving Lines</strong>: The fastest real-road driving path for each truck. Each truck has its own color.</span>
                   </li>
                 </ul>
               </div>
@@ -178,34 +177,41 @@ export function HelpModal({ open, onClose }: Props) {
             <div className="space-y-4 anim-slide">
               <div className="rounded-xl border border-green/30 bg-green-tint/40 p-4">
                 <div className="flex items-center gap-2">
-                  <Atom size={16} className="text-green" />
+                  <Sparkles size={16} className="text-green" />
                   <h3 className="font-display font-bold text-ink text-sm">
-                    Pure Quantum-Behaved Particle Swarm Optimization
+                    How the Smart Route Engine Works
                   </h3>
                 </div>
                 <p className="mt-1 text-[12px] text-ink-soft">
-                  QuantaRoute utilizes an exclusive <strong>Quantum PSO (QPSO)</strong> metaheuristic.
-                  Unlike classical PSO or Genetic Algorithms, QPSO removes velocity vectors and models particle positions using quantum delta potential wells.
+                  QuantaRoute uses a smart route-planning engine called <strong>QPSO</strong>. It is designed to find the fastest delivery routes for multiple trucks at the same time.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="rounded-xl border border-line bg-card p-3.5">
                   <h4 className="font-bold text-ink text-[12px] flex items-center gap-1.5">
-                    <Sparkles size={13} className="text-green" /> Mean Best & Quantum Attractor
+                    <Atom size={13} className="text-green" /> Tests Thousands of Paths in Seconds
                   </h4>
                   <p className="mt-1 text-[11px] text-ink-faint leading-relaxed">
-                    Particles converge toward a probabilistic quantum attractor p(i, j) governed by personal best and global best swarm positions.
-                    Because quantum particles have non-zero probability of appearing anywhere in the search space, QPSO effectively escapes local minima that trap classical solvers.
+                    Instead of checking one road at a time like basic GPS, our engine explores thousands of route combinations all at once. This guarantees your trucks find the shortest paths without getting stuck in congested areas.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-line bg-card p-3.5">
                   <h4 className="font-bold text-ink text-[12px] flex items-center gap-1.5">
-                    <Route size={13} className="text-green" /> 2-Opt & Exact TSP Memetic Polish
+                    <Route size={13} className="text-green" /> Cleans Up Zig-Zags & Backtracking
                   </h4>
                   <p className="mt-1 text-[11px] text-ink-faint leading-relaxed">
-                    After global QPSO swarm convergence, a deterministic memetic step performs exact Hamiltonian TSP optimization per vehicle (up to 8 stops per truck) and inter-tour relocation swaps to eliminate any zig-zags or crossed routes.
+                    The engine automatically smooths out delivery orders so drivers never criss-cross or drive in loops. Each driver gets a neat, direct sequence of stops.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-line bg-card p-3.5">
+                  <h4 className="font-bold text-ink text-[12px] flex items-center gap-1.5">
+                    <CheckCircle2 size={13} className="text-green" /> Respects Truck Capacity
+                  </h4>
+                  <p className="mt-1 text-[11px] text-ink-faint leading-relaxed">
+                    Packages are distributed evenly across your trucks so no single vehicle is overloaded.
                   </p>
                 </div>
               </div>
@@ -218,11 +224,11 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-center gap-2">
                   <GitCompare size={16} className="text-ink" />
                   <h3 className="font-display font-bold text-ink text-sm">
-                    Understanding WAIT vs. REROUTE
+                    Should You Wait or Take a Detour?
                   </h3>
                 </div>
                 <p className="mt-1 text-[12px] text-ink-soft">
-                  When traffic bottlenecks or accidents occur in real-time, QuantaRoute dynamically computes and compares two operational strategies:
+                  When a traffic jam or accident happens, drivers usually wonder: <em>"Should I wait it out, or take a side road around it?"</em> QuantaRoute compares both choices automatically:
                 </p>
               </div>
 
@@ -230,37 +236,37 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="rounded-xl border border-amber/30 bg-amber/5 p-3.5">
                   <div className="flex items-center gap-1.5">
                     <Hourglass size={14} className="text-amber" />
-                    <h4 className="font-bold text-ink text-[12px]">Option A: WAIT</h4>
+                    <h4 className="font-bold text-ink text-[12px]">Choice 1: WAIT</h4>
                   </div>
                   <p className="mt-1.5 text-[11px] text-ink-soft">
-                    <strong>Hold planned route sequence</strong> and absorb congestion delay.
+                    Stay on the current road and wait for traffic to move.
                   </p>
                   <ul className="mt-2 space-y-1 text-[10px] text-ink-faint">
-                    <li>• Zero extra mileage or detours</li>
-                    <li>• Idling fuel consumption during gridlock</li>
-                    <li>• Recommended when congestion is light or short-lived</li>
+                    <li>• Best when traffic is light or short-lived</li>
+                    <li>• No extra driving distance or unfamiliar roads</li>
+                    <li>• Truck burns a little fuel while idling</li>
                   </ul>
                 </div>
 
                 <div className="rounded-xl border border-green/30 bg-green-tint/50 p-3.5">
                   <div className="flex items-center gap-1.5">
                     <Navigation size={14} className="text-green" />
-                    <h4 className="font-bold text-ink text-[12px]">Option B: REROUTE</h4>
+                    <h4 className="font-bold text-ink text-[12px]">Choice 2: REROUTE</h4>
                   </div>
                   <p className="mt-1.5 text-[11px] text-ink-soft">
-                    <strong>Run dynamic QPSO re-dispatch</strong> to bypass congested road corridors.
+                    Take an alternative detour road to drive around the jam.
                   </p>
                   <ul className="mt-2 space-y-1 text-[10px] text-ink-faint">
-                    <li>• Active travel time savings</li>
-                    <li>• Extra detour distance, but eliminates stationary idling</li>
-                    <li>• Recommended during severe accidents or blocked roads</li>
+                    <li>• Best during major accidents or standstill gridlock</li>
+                    <li>• Keeps trucks moving so deliveries arrive on time</li>
+                    <li>• Extra distance, but saves time and prevents wasted idle fuel</li>
                   </ul>
                 </div>
               </div>
 
               <div className="rounded-xl border border-line bg-card p-3.5 text-[11px] text-ink-faint">
                 <p>
-                  💡 <strong>Tip:</strong> Access the full comparison at any time by selecting the <strong>Wait vs Reroute</strong> tab in the sidebar or clicking the prompt on any traffic alert.
+                  💡 <strong>How to decide:</strong> Look at the <strong>Wait vs. Reroute</strong> tab anytime. The green recommendation banner tells you the best decision and shows how many minutes and liters of fuel you save!
                 </p>
               </div>
             </div>
@@ -270,10 +276,10 @@ export function HelpModal({ open, onClose }: Props) {
             <div className="space-y-4 anim-slide">
               <div className="rounded-xl border border-line bg-paper/60 p-4">
                 <h3 className="font-display font-bold text-ink text-sm">
-                  Delivery Management & App Controls
+                  How to Use the App (Quick Steps)
                 </h3>
                 <p className="mt-1 text-[12px] text-ink-soft">
-                  Quick tips on customizing scenarios, managing deliveries, and exploring results.
+                  Here is how you can customize deliveries and test different scenarios in seconds:
                 </p>
               </div>
 
@@ -281,9 +287,9 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-start gap-3 rounded-lg border border-line bg-card p-3">
                   <Package size={16} className="text-green mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-bold text-ink text-[12px]">Adding New Deliveries</p>
+                    <p className="font-bold text-ink text-[12px]">Add a New Customer Stop</p>
                     <p className="text-[11px] text-ink-faint">
-                      Click <strong>"Add Delivery"</strong> in the top header, then click anywhere on the Bangalore map. Enter customer name and demand units to immediately update routes.
+                      Click <strong>"Add Delivery"</strong> at the top, then tap anywhere on the map to drop a new pin. Enter the customer's name and package count, and routes update instantly.
                     </p>
                   </div>
                 </div>
@@ -291,9 +297,9 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-start gap-3 rounded-lg border border-line bg-card p-3">
                   <AlertTriangle size={16} className="text-amber mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-bold text-ink text-[12px]">Simulating Traffic Disruptions</p>
+                    <p className="font-bold text-ink text-[12px]">Simulate Traffic Jams & Accidents</p>
                     <p className="text-[11px] text-ink-faint">
-                      Click <strong>"+ Jam"</strong> or <strong>"+ Accident"</strong> in the top disruption bar. QuantaRoute instantly triggers WAIT vs REROUTE evaluation.
+                      Click <strong>"+ Traffic Jam"</strong> or <strong>"+ Road Accident"</strong> to add road disruption. The app will immediately calculate whether trucks should wait or reroute.
                     </p>
                   </div>
                 </div>
@@ -301,9 +307,9 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-start gap-3 rounded-lg border border-line bg-card p-3">
                   <Truck size={16} className="text-blue-600 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-bold text-ink text-[12px]">Fleet Sizing</p>
+                    <p className="font-bold text-ink text-[12px]">Change Number of Trucks</p>
                     <p className="text-[11px] text-ink-faint">
-                      Use the Fleet Size counter in the control dock to adjust the number of available trucks (1 to 5). Vehicle capacities automatically adjust.
+                      Use the <strong>+</strong> and <strong>-</strong> buttons on Fleet Size to add or remove trucks. The app automatically re-balances package loads.
                     </p>
                   </div>
                 </div>
@@ -311,9 +317,9 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-start gap-3 rounded-lg border border-line bg-card p-3">
                   <Layers size={16} className="text-ink-soft mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-bold text-ink text-[12px]">Map vs. Satellite</p>
+                    <p className="font-bold text-ink text-[12px]">Street Map vs. Satellite View</p>
                     <p className="text-[11px] text-ink-faint">
-                      Use the floating layer button at the bottom-right of the map to toggle between OpenStreetMap street vector view and high-resolution Esri satellite imagery.
+                      Click the layers button at the bottom-right of the map to switch between clean street road map and real satellite photography.
                     </p>
                   </div>
                 </div>
@@ -325,7 +331,7 @@ export function HelpModal({ open, onClose }: Props) {
         {/* Modal Footer */}
         <footer className="flex items-center justify-between border-t border-line bg-paper/60 px-5 py-3 text-[12px]">
           <span className="font-mono text-[10px] font-semibold text-ink-faint">
-            QuantaRoute v2.4 · Quantum PSO Engine
+            QuantaRoute · Smart Dispatch Assistant
           </span>
           <button
             onClick={onClose}

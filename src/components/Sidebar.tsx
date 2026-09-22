@@ -1,8 +1,29 @@
-import { GitCompare, History, LayoutDashboard, Map, Package, Settings, Waypoints } from "lucide-react";
+import {
+  ClipboardList,
+  GitCompare,
+  History,
+  LayoutDashboard,
+  LucideIcon,
+  Package,
+  Settings,
+  Truck,
+  Waypoints,
+  Wrench,
+} from "lucide-react";
 
-export type View = "dashboard" | "deliveries" | "compare" | "tracking" | "history" | "settings";
+export type View =
+  | "dashboard"
+  | "deliveries"
+  | "compare"
+  | "tracking"
+  | "history"
+  | "settings"
+  | "fleet-dashboard"
+  | "fleet-vehicles"
+  | "fleet-manifest"
+  | "fleet-maintenance";
 
-const ITEMS: { id: View; label: string; icon: typeof Map }[] = [
+const ADMIN_ITEMS: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "deliveries", label: "My Deliveries", icon: Package },
   { id: "compare", label: "Wait vs Reroute", icon: GitCompare },
@@ -11,31 +32,53 @@ const ITEMS: { id: View; label: string; icon: typeof Map }[] = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
+const FLEET_ITEMS: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "fleet-dashboard", label: "Fleet Dashboard", icon: LayoutDashboard },
+  { id: "fleet-vehicles", label: "Vehicles & Drivers", icon: Truck },
+  { id: "fleet-manifest", label: "Dispatch Manifest", icon: ClipboardList },
+  { id: "compare", label: "Wait vs Reroute", icon: GitCompare },
+  { id: "fleet-maintenance", label: "Maintenance", icon: Wrench },
+];
+
 interface Props {
   view: View;
   setView: (v: View) => void;
+  role?: "admin" | "fleetmanager";
 }
 
-export function Sidebar({ view, setView }: Props) {
+export function Sidebar({ view, setView, role = "admin" }: Props) {
+  const items = role === "fleetmanager" ? FLEET_ITEMS : ADMIN_ITEMS;
+
   return (
-    <aside className="hidden shrink-0 lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-night-line lg:bg-night lg:px-3 lg:py-4">
-      {ITEMS.map((item) => {
-        const active = view === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => setView(item.id)}
-            className={`flex shrink-0 items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition lg:w-full ${
-              active
-                ? "bg-green text-white shadow-[0_3px_0_#0c7a37]"
-                : "text-white/65 hover:bg-night-soft hover:text-white"
-            }`}
-          >
-            <item.icon size={17} />
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
+    <aside className="hidden shrink-0 lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-night-line lg:bg-night lg:px-3 lg:py-4 select-none">
+      <div className="mb-2 px-3 py-1 flex items-center justify-between">
+        <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-white/40">
+          {role === "fleetmanager" ? "Fleet Portal" : "Admin Portal"}
+        </span>
+        <span className="rounded-full bg-green/20 px-2 py-0.5 font-mono text-[9px] font-bold text-green-bright">
+          {role === "fleetmanager" ? "Ops Active" : "Control"}
+        </span>
+      </div>
+
+      <div className="space-y-1">
+        {items.map((item) => {
+          const active = view === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setView(item.id)}
+              className={`flex shrink-0 items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition lg:w-full ${
+                active
+                  ? "bg-green text-white shadow-[0_3px_0_#0c7a37]"
+                  : "text-white/65 hover:bg-night-soft hover:text-white"
+              }`}
+            >
+              <item.icon size={17} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* promo card */}
       <div className="hidden lg:mt-auto lg:block">
