@@ -2,22 +2,20 @@ import { useState } from "react";
 import {
   AlertTriangle,
   BatteryCharging,
-  CheckCircle2,
   Gauge,
   Plus,
   ShieldCheck,
-  Truck,
   Wrench,
   Zap,
 } from "lucide-react";
-import { DRIVER_ROSTER } from "./FleetManagerDashboard";
+import { DRIVER_ROSTER } from "../lib/driverTypes";
 
 interface Props {
   onToast?: (msg: string, tone: "traffic" | "accident" | "info") => void;
 }
 
 export function FleetMaintenanceView({ onToast }: Props) {
-  const [vehicles, setVehicles] = useState([
+  const [vehicles] = useState([
     {
       id: 0,
       label: "1",

@@ -1,4 +1,4 @@
-# QuantaRoute — Quantum-Inspired Fleet Route Optimization
+# QuantaRoute — Quantum-Inspired Fleet Route Optimization & Dispatch Platform
 
 [![React 19](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![Vite 7](https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
@@ -7,25 +7,49 @@
 [![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)](https://leafletjs.com)
 [![Solver](https://img.shields.io/badge/Engine-QPSO_(Quantum_PSO)-10B981)](#1-quantum-inspired-pso-qpso-engine)
 
-**QuantaRoute** is a high-performance, real-time multi-vehicle routing and fleet dispatch platform powered exclusively by **Quantum-Inspired Particle Swarm Optimization (QPSO)**. Built for dynamic urban delivery networks, QuantaRoute simulates live traffic bottlenecks and accidents, analyzes trade-offs between **WAITING** and **REROUTING**, and snaps all fleet routes to actual OpenStreetMap driving networks.
+**QuantaRoute** is a real-time multi-vehicle routing, dispatching, and field communication platform powered exclusively by **Quantum-Inspired Particle Swarm Optimization (QPSO)**. Built for modern urban logistics networks, QuantaRoute simulates live traffic bottlenecks and road accidents, evaluates trade-offs between **WAITING** and **REROUTING**, and features dedicated multi-role portals for **Administrators**, **Fleet Managers**, and **Fleet Drivers**.
 
 ---
 
 ## Key Capabilities
 
 ### 1. Quantum-Inspired PSO (QPSO) Engine
-- **Wave-Function Delta Potential Formulation**: Particles converge toward a probabilistic quantum attractor $p_{ij}$ governed by personal best and global best swarm states:
+- **Wave-Function Delta Potential Formulation**: Swarm particles explore combinatorial permutation space with probabilistic quantum attractors $p_{ij}$ governed by personal best and global best states:
   $$X = P \pm \alpha \cdot |m_{best} - X| \cdot \ln(1/u)$$
-- **Continuous Random-Key Encoding**: Robust customer-to-truck sequence encoding that prevents infeasible solutions and explores the combinatorial permutation space.
-- **$\alpha$-Annealing Schedule**: Linear cooling parameter ($\alpha = 0.95 \to 0.50$) balances global exploration with rapid convergence.
-- **Memetic Polish (Exact TSP + 2-Opt)**: Intra-tour exact TSP for routes with $\le 8$ stops and 2-Opt string-exchange heuristics for larger routes, paired with inter-tour customer relocations to ensure clean, untangled routes.
+- **Continuous Random-Key Encoding**: Robust customer-to-truck sequence encoding that guarantees feasible capacity-respecting solutions.
+- **$\alpha$-Annealing Schedule**: Linear cooling parameter ($\alpha = 0.95 \to 0.50$) balances broad exploration with rapid convergence.
+- **Memetic Polish (Exact TSP + 2-Opt)**: Intra-tour exact TSP for routes with $\le 8$ stops and 2-Opt string-exchange heuristics for larger tours, paired with inter-tour customer relocations to ensure clean, untangled routes.
 
-### 2. Closed Hamiltonian Cycles with Central Depot Hub
+### 2. Multi-Role Portals & Access Control
+
+Switch seamlessly between three role perspectives from the TopBar profile menu:
+
+#### A. Super Admin Console
+- **Full Fleet Oversight**: Control active fleet size ($1 \to 5$ vehicles), optimize routes with QPSO, simulate traffic and accidents.
+- **Dispatch Notifications Center**: Dedicated communications hub with **Received from Drivers** (incident reports, SOS alerts, roadside assistance requests) and **Sent Broadcasts** tabs.
+- **Driver Details Management**: Update driver profiles, contact information, driving license numbers, shift timings, and medical/emergency contacts.
+- **Add New Fleet & Driver**: Mobile-first registration modal to onboard new vehicles (auto-incremented vehicle number, model, EV vs Diesel, plate) and assign drivers.
+
+#### B. Fleet Operations Manager Portal
+- **Fleet Dispatch Console**: Live operational KPIs (active trucks, fleet capacity utilization, planned travel duration, on-time delivery estimates).
+- **All Truck Paths Map View**: By default, the Fleet Manager map displays **paths for all trucks** across the city with distinct color-coded routes. Includes interactive filter pills (`All Trucks`, `Truck #1`, `Truck #2`, etc.) to isolate individual vehicle tours.
+- **Vehicles & Assigned Drivers**: Comprehensive roster displaying vehicle model, license plate, power/fuel level (EV battery or diesel), remaining stops, driver ratings, and quick communication triggers.
+- **Delivery Manifest**: Organized manifest sequence with customer stop details, cargo demand units, delivery windows, and proof-of-delivery tracking.
+- **Fleet Maintenance**: Real-time vehicle diagnostics, tire pressure, brake pad wear, battery health, and service scheduling.
+
+#### C. Fleet Driver In-Cab Personal Assistant
+- **Strictly Isolated Single-Route Map**: The in-cab navigation map strictly displays **only the driver's own assigned route (Vehicle #1 · Rajesh Kumar)** and assigned delivery stops, completely hiding other fleet trucks for zero distraction and privacy.
+- **Live Telemetry HUD**: Real-time battery/fuel gauge, remaining driving range, and next-stop cards with 1-tap navigation and customer phone call triggers.
+- **Isolated "Wait vs Reroute" View**: In-cab decision comparator showing delay and detour metrics strictly for the driver's vehicle, omitting collective fleet numbers.
+- **On-Road Incident Reporting**: 1-tap reporting for heavy traffic, vehicle breakdown, roadblock, or customer unavailable, instantly alerting Dispatch and updating route simulations.
+- **Personal Copilot & Direct Messaging**: Conversational assistant for traffic and battery queries, and direct two-way messaging with Admin Dispatch.
+
+### 3. Closed Hamiltonian Cycles with Central Depot Hub
 - Every vehicle departs from and returns to the dedicated **Start Point · Central Depot** (`12.9763, 77.5929` near Cubbon Park, Bangalore).
 - High-fidelity origin/departure legs and return legs to replenish inventory.
 - Stop bubble markers dynamically match the visiting truck's color and display the exact drop sequence number ($1, 2, 3\dots$).
 
-### 3. Live "WAIT vs. REROUTE" Decision Comparator
+### 4. Live "WAIT vs. REROUTE" Decision Comparator
 When traffic congestion or accidents occur on route corridors, QuantaRoute evaluates both operational alternatives:
 - **Option A (WAIT)**: Keep current routing schedule, absorb congestion delay, and incur vehicle idling fuel consumption.
 - **Option B (REROUTE)**: Re-run dynamic QPSO dispatching around the bottleneck, incurring detour mileage to eliminate standstill delay.
@@ -35,20 +59,17 @@ When traffic congestion or accidents occur on route corridors, QuantaRoute evalu
   - Carbon Footprint ($CO_2$ kg)
   - Vehicle-by-Vehicle Impact Breakdown (which trucks are affected vs. unaffected)
 
-### 4. Real Drivable Road Paths (OSRM + Precomputed Roads)
+### 5. Universal Cross-Role Notification Drafting
+- Mobile-first composer allowing **Admin**, **Fleet Manager**, and **Fleet Driver** to draft and dispatch notifications to each other.
+- **1-Tap Quick Templates**:
+  - *Drivers*: Traffic Delay, Delivery Completed, Customer Absent, EV Battery Low.
+  - *Dispatch*: Priority Dispatch, Quantum Reroute Active, Charging Slot Reserved, End of Shift Reminder.
+
+### 6. Real Drivable Road Paths (OSRM + Precomputed Roads)
 - Snaps all routes to authentic OpenStreetMap road segments using the OSRM driving profile.
 - Built-in precomputed road geometry cache for instantaneous loading and zero-latency route visualization.
 - Graceful offline fallback to straight-line interpolation if network connectivity is unavailable.
 - Interactive satellite imagery toggle (Esri World Imagery).
-
-### 5. Situation-Aware Optimization History
-Real-time status tracking reflects the exact conditions that triggered each solve:
-- 🟢 **OPTIMAL**: Free-flow baseline route calculated with no active incidents.
-- 🔵 **REROUTED**: Congestion or roadblock detected — QPSO recomputed a detour and displays time saved.
-- 🟡 **WAITING**: Traffic incident detected, but waiting out the congestion is evaluated to be faster than detouring.
-- 🔴 **ACCIDENT**: Critical road blockage incident detected on the corridor.
-- 🟢 **CLEARED**: Incidents cleared and normal free-flow operations restored.
-- 🔴 **OVERLOAD**: Customer demand exceeded vehicle capacity.
 
 ---
 
@@ -69,37 +90,46 @@ Real-time status tracking reflects the exact conditions that triggered each solv
 
 ```
 src/
-├─ main.tsx                      # Application entrypoint & ErrorBoundary root
-├─ App.tsx                       # State machine, scenario orchestration, and view router
-├─ index.css                     # Tailwind v4 theme, font definitions, and map styles
-├─ vite-env.d.ts                 # TypeScript client environment types
+├─ main.tsx                           # Application entrypoint & ErrorBoundary root
+├─ App.tsx                            # Root state, role orchestration, and view router
+├─ index.css                          # Tailwind v4 theme, font definitions, and map styles
+├─ vite-env.d.ts                      # TypeScript client environment types
 ├─ assets/
-│  └─ logo.png                   # Brand mark
+│  └─ logo.png                        # Brand mark
 ├─ lib/
-│  ├─ network.ts                 # Graph coordinates, depot origin, demand & Gaussian congestion fields
-│  ├─ optimizer.ts               # Core QPSO metaheuristic, 2-Opt refinement, and exact TSP polish
-│  ├─ waitReroute.ts             # WAIT vs. REROUTE trade-off comparator engine & fuel/CO2 models
-│  ├─ osrm.ts                    # OSRM road geometry fetcher, caching layer, and geometry decoding
-│  ├─ precomputedRoads.json      # Offline high-fidelity drivable road segments for Bangalore
-│  └─ types.ts                   # Core interfaces (Stop, Incident, RunStatus, RunEntry, Solution)
+│  ├─ network.ts                      # Graph coordinates, depot origin, demand & Gaussian congestion fields
+│  ├─ optimizer.ts                    # Core QPSO metaheuristic, 2-Opt refinement, and exact TSP polish
+│  ├─ waitReroute.ts                  # WAIT vs. REROUTE trade-off comparator engine & fuel/CO2 models
+│  ├─ osrm.ts                         # OSRM road geometry fetcher, caching layer, and geometry decoding
+│  ├─ precomputedRoads.json           # Offline high-fidelity drivable road segments for Bangalore
+│  ├─ driverTypes.ts                  # Driver roster, profile schemas, and unified notification types
+│  └─ types.ts                        # Core interfaces (Stop, Incident, RunStatus, RunEntry, Solution)
 └─ components/
-   ├─ TopBar.tsx                 # Header navigation, live disruption status, and Help trigger
-   ├─ Sidebar.tsx                # Desktop side navigation bar
-   ├─ BottomNav.tsx              # Mobile/tablet bottom navigation bar
-   ├─ MapView.tsx                # Leaflet map container, custom pins, route paths, and layer toggle
-   ├─ ControlDock.tsx            # Fleet size slider, scenario resets, and solve action bar
-   ├─ panels.tsx                 # Incident disruption bar (+Jam, +Crash), traffic alerts, and stats
-   ├─ WaitRerouteComparator.tsx  # Interactive WAIT vs. REROUTE modal and side-by-side dashboard
-   ├─ HelpModal.tsx              # Comprehensive in-app user guide (Depot Hub, QPSO, Comparator, Controls)
-   ├─ ModelSheet.tsx             # Mathematical formulation sheet (QPSO equations & objective function)
-   ├─ Toast.tsx                  # Floating notification alerts
-   ├─ ErrorBoundary.tsx          # Application error boundary
-   └─ views.tsx                  # Main views:
-                                 #  ├─ DeliveriesView (custom delivery stops & depot display)
-                                 #  ├─ DeliveryModal (interactive map-click delivery creator)
-                                 #  ├─ HistoryView (situation-aware status history table)
-                                 #  ├─ LiveTrackingView (animated truck dispatch queue & route progress)
-                                 #  └─ SettingsView (road-snap toggle & engine diagnostics)
+   ├─ TopBar.tsx                      # Header navigation, live disruption status, and role switcher
+   ├─ Sidebar.tsx                     # Desktop role-adaptive side navigation bar
+   ├─ BottomNav.tsx                   # Mobile role-adaptive bottom navigation bar
+   ├─ MapView.tsx                     # Leaflet map container, custom pins, route paths, and layer toggle
+   ├─ ControlDock.tsx                 # Fleet size slider, scenario resets, and solve action bar
+   ├─ panels.tsx                      # Incident disruption bar (+Jam, +Crash), traffic alerts, and stats
+   ├─ WaitRerouteComparator.tsx       # Interactive WAIT vs. REROUTE comparator (with driver route isolation)
+   ├─ FleetManagerDashboard.tsx       # Fleet Manager console with all-trucks map view and route filters
+   ├─ FleetVehiclesView.tsx           # Fleet vehicle cards, driver roster, and Add Fleet button
+   ├─ FleetManifestView.tsx           # Delivery manifest checklist and proof-of-delivery tracking
+   ├─ FleetMaintenanceView.tsx        # Fleet health diagnostics, tire pressure, and service scheduling
+   ├─ DriverAssistantView.tsx         # Driver in-cab assistant, HUD, copilot, and strictly isolated route map
+   ├─ DriverDeliveriesView.tsx        # Driver delivery checklist for assigned vehicle
+   ├─ DriverReportsView.tsx           # Driver field incident reporting console
+   ├─ DriverNotificationsView.tsx     # Driver dispatch inbox with 1-tap replies
+   ├─ AdminNotificationsView.tsx      # Admin communications center (Received from Drivers & Sent Broadcasts)
+   ├─ AddFleetModal.tsx               # Mobile-first modal to register new vehicle and driver
+   ├─ EditDriverModal.tsx              # Admin/Manager driver details editor modal
+   ├─ ProfileModal.tsx                # Role-specific profile credentials modal
+   ├─ DraftNotificationModal.tsx      # Cross-role notification drafting bottom sheet
+   ├─ HelpModal.tsx                   # Comprehensive in-app user guide
+   ├─ ModelSheet.tsx                  # Mathematical formulation sheet (QPSO equations & objective function)
+   ├─ Toast.tsx                       # Floating notification alerts
+   ├─ ErrorBoundary.tsx               # Application error boundary
+   └─ views.tsx                       # DeliveriesView, DeliveryModal, HistoryView, LiveTrackingView, SettingsView
 ```
 
 ---
@@ -140,32 +170,11 @@ Compile the production bundle (generates a portable, self-contained `dist/index.
 npm run build
 ```
 
-Preview the production build locally:
+Preview the production bundle locally:
 
 ```bash
 npm run preview
 ```
-
----
-
-## User Workflows & Controls
-
-1. **Viewing Routes**:
-   - Click **"Find Best Route"** to trigger the QPSO solver.
-   - Observe trucks departing from the **Start Point · Central Depot** and returning upon finishing all customer drops.
-2. **Adding Custom Deliveries**:
-   - Click **"Add Delivery"** in the top header or Deliveries view.
-   - Click any location on the Bangalore canvas to place a new delivery stop and specify unit demands.
-3. **Simulating Disruptions**:
-   - Click **"+ Jam"** or **"+ Crash"** in the disruption bar to inject real-time road incidents.
-   - QuantaRoute dynamically recalculates the network edge weights using a Gaussian congestion field.
-4. **Comparing WAIT vs. REROUTE**:
-   - Inspect the **WAIT vs REROUTE** comparison panel to review time saved, detour distance, and fuel savings.
-   - Use the map toggle to switch between the original route sequence (**WAIT**) and the detour bypass (**REROUTE**).
-5. **Tracking Live Fleet Dispatch**:
-   - Switch to the **Tracking** tab to observe animated vehicle dispatch sequences along real street segments.
-6. **Reviewing Optimization History**:
-   - Open the **History** tab to inspect all previous runs with color-coded status badges (`OPTIMAL`, `REROUTED`, `WAITING`, `ACCIDENT`, `CLEARED`, `OVERLOAD`) and situational descriptions.
 
 ---
 

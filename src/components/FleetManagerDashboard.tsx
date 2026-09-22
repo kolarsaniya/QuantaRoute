@@ -1,96 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AlertTriangle,
   BatteryCharging,
   CheckCircle2,
+  ClipboardList,
   Clock,
-  ExternalLink,
   Flame,
   Fuel,
-  GitCompare,
   MessageSquare,
-  Navigation,
+  Package,
   Phone,
-  Radio,
-  RefreshCw,
+  Send,
   ShieldCheck,
-  TrendingUp,
   Truck,
   Users,
-  Warehouse,
 } from "lucide-react";
 import { MapView } from "./MapView";
 import type { Incident, Solution, Stop, VehicleRoute, WaitVsRerouteComparison } from "../lib/types";
-
-export interface DriverInfo {
-  id: number;
-  name: string;
-  phone: string;
-  avatar: string;
-  vehicleModel: string;
-  plate: string;
-  fuelType: "EV" | "Diesel";
-  fuelLevel: number;
-  rating: number;
-}
-
-export const DRIVER_ROSTER: Record<number, DriverInfo> = {
-  0: {
-    id: 0,
-    name: "Rajesh Kumar",
-    phone: "+91 98450 12345",
-    avatar: "RK",
-    vehicleModel: "Tata Ace EV",
-    plate: "KA-01-EA-1082",
-    fuelType: "EV",
-    fuelLevel: 88,
-    rating: 4.9,
-  },
-  1: {
-    id: 1,
-    name: "Suresh Murthy",
-    phone: "+91 98451 67890",
-    avatar: "SM",
-    vehicleModel: "Ashok Leyland Bada Dost",
-    plate: "KA-04-MB-4521",
-    fuelType: "Diesel",
-    fuelLevel: 74,
-    rating: 4.8,
-  },
-  2: {
-    id: 2,
-    name: "Anil Deshmukh",
-    phone: "+91 98452 34567",
-    avatar: "AD",
-    vehicleModel: "Mahindra Zor Grand EV",
-    plate: "KA-05-EV-9901",
-    fuelType: "EV",
-    fuelLevel: 92,
-    rating: 4.95,
-  },
-  3: {
-    id: 3,
-    name: "Mohammed Farooq",
-    phone: "+91 98453 78901",
-    avatar: "MF",
-    vehicleModel: "Eicher Pro 2049",
-    plate: "KA-03-TR-6234",
-    fuelType: "Diesel",
-    fuelLevel: 61,
-    rating: 4.7,
-  },
-  4: {
-    id: 4,
-    name: "Venkatesh Rao",
-    phone: "+91 98454 89012",
-    avatar: "VR",
-    vehicleModel: "Tata Ultra T.7 EV",
-    plate: "KA-02-EV-3310",
-    fuelType: "EV",
-    fuelLevel: 80,
-    rating: 4.85,
-  },
-};
+import { DRIVER_ROSTER } from "../lib/driverTypes";
 
 interface Props {
   stops: Stop[];
@@ -105,6 +32,7 @@ interface Props {
   onAddAccident: () => void;
   onClearIncidents: () => void;
   onToast?: (msg: string, tone: "traffic" | "accident" | "info") => void;
+  onDraftClick?: () => void;
 }
 
 export function FleetManagerDashboard({
@@ -120,7 +48,32 @@ export function FleetManagerDashboard({
   onAddAccident,
   onClearIncidents,
   onToast,
+  onDraftClick,
 }: Props) {
+  // Fleet Manager map route view: defaults to "all" so manager sees paths for ALL trucks
+  const [managerRouteId, setManagerRouteId] = useState<number | "all">("all");
+
+  const isolatedRoutes = useMemo(() => {
+    if (managerRouteId === "all") return routes;
+    return routes.filter((r) => r.vehicleId === managerRouteId);
+  }, [routes, managerRouteId]);
+
+  const isolatedStopIds = useMemo(() => {
+    return new Set(isolatedRoutes.flatMap((r: VehicleRoute) => r.stopIds));
+  }, [isolatedRoutes]);
+
+  const isolatedStopMarkers = useMemo(() => {
+    if (managerRouteId === "all") return stopMarkers;
+    const res: Record<number, { color: string; label: string }> = {};
+    Object.entries(stopMarkers).forEach(([k, v]) => {
+      const id = Number(k);
+      if (isolatedStopIds.has(id)) {
+        res[id] = v;
+      }
+    });
+    return res;
+  }, [stopMarkers, isolatedStopIds, managerRouteId]);
+
   const [selectedTruck, setSelectedTruck] = useState<number | null>(null);
 
   const totalCapacityUnits = routes.length * 20; // baseline 20u per vehicle
@@ -136,72 +89,75 @@ export function FleetManagerDashboard({
       <div className="anim-up flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4 sm:p-5 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green text-white text-[12px] font-bold">
-              FM
+            <span className="rounded-full bg-green/20 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase text-green-bright">
+              Operations Active
             </span>
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-green-deep">
-              Fleet Operations Control Center
-            </span>
-            <span className="flex items-center gap-1 rounded-full bg-green/15 px-2 py-0.5 font-mono text-[10px] font-bold text-green-bright">
-              <Radio size={12} className="qr-blink" /> Live Dispatch
-            </span>
+            <span className="font-mono text-[11px] text-ink-faint">Territory: Bangalore Urban</span>
           </div>
-          <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
-            Fleet Dispatch & Operations Hub
+          <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-ink sm:text-2xl">
+            Fleet Dispatch Console
           </h2>
-          <p className="mt-0.5 text-[12px] text-ink-soft sm:text-[13px]">
-            Real-time monitoring of {routes.length} active delivery vehicles, driver assignments, route completion, and dynamic traffic detours.
+          <p className="text-[12px] text-ink-soft sm:text-[13px]">
+            Real-time telemetry, driver status, delivery progress, and incident routing control.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {onDraftClick && (
+            <button
+              onClick={onDraftClick}
+              className="flex items-center gap-1.5 rounded-xl border border-green/40 bg-green/10 px-3.5 py-2 text-[12px] font-bold text-green-deep transition hover:bg-green/20"
+            >
+              <Send size={14} /> Send Broadcast
+            </button>
+          )}
           <button
             onClick={() => onNavigateTab("fleet-vehicles")}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-[12px] font-bold text-ink transition hover:border-ink"
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-paper px-3.5 py-2 text-[12px] font-bold text-ink transition hover:border-green hover:bg-card"
           >
             <Truck size={14} /> Vehicles List
           </button>
           <button
             onClick={() => onNavigateTab("fleet-manifest")}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-[12px] font-bold text-ink transition hover:border-ink"
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-paper px-3.5 py-2 text-[12px] font-bold text-ink transition hover:border-green hover:bg-card"
           >
-            <CheckCircle2 size={14} /> Delivery Manifest
+            <ClipboardList size={14} /> Delivery Manifest
           </button>
           <button
             onClick={() => onNavigateTab("compare")}
-            className="flex items-center gap-1.5 rounded-lg bg-green px-3.5 py-2 text-[12px] font-bold text-white shadow-[0_2px_0_#0c7a37] transition hover:bg-green-deep active:translate-y-0.5"
+            className="flex items-center gap-1.5 rounded-xl bg-green px-4 py-2 text-[12px] font-bold text-white shadow-[0_3px_0_#0c7a37] transition hover:bg-green-deep active:translate-y-0.5"
           >
-            <GitCompare size={14} /> Wait vs Reroute
+            <CheckCircle2 size={14} /> Wait vs Reroute
           </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+      {/* Operational KPI Cards Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-line bg-card p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-[11px] font-semibold text-ink-soft">
             <span>Active Trucks</span>
             <Truck size={15} className="text-green" />
           </div>
           <p className="mt-1 font-display text-2xl font-bold text-ink">
-            {routes.length} <span className="text-[12px] font-normal text-ink-faint">/ 5 ready</span>
+            {routes.length} / 5
           </p>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] font-mono text-ink-faint">
-            <span className="h-1.5 w-1.5 rounded-full bg-green" /> 100% on duty
-          </div>
+          <p className="mt-2 text-[10px] font-mono text-green-deep font-semibold">
+            ● All drivers on-duty
+          </p>
         </div>
 
         <div className="rounded-xl border border-line bg-card p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-[11px] font-semibold text-ink-soft">
-            <span>Capacity Utilized</span>
-            <TrendingUp size={15} className="text-blue-600" />
+            <span>Fleet Capacity</span>
+            <Package size={15} className="text-amber" />
           </div>
           <p className="mt-1 font-display text-2xl font-bold text-ink">
             {utilizationPercent}%
           </p>
-          <div className="mt-2 h-1.5 w-full rounded-full bg-paper overflow-hidden">
+          <div className="mt-2.5 h-1.5 w-full rounded-full bg-paper overflow-hidden border border-line">
             <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-500"
+              className="h-full bg-amber rounded-full transition-all"
               style={{ width: `${utilizationPercent}%` }}
             />
           </div>
@@ -209,11 +165,11 @@ export function FleetManagerDashboard({
 
         <div className="rounded-xl border border-line bg-card p-3.5 shadow-sm">
           <div className="flex items-center justify-between text-[11px] font-semibold text-ink-soft">
-            <span>Planned Drive Time</span>
-            <Clock size={15} className="text-amber" />
+            <span>Total Drive Time</span>
+            <Clock size={15} className="text-ink" />
           </div>
           <p className="mt-1 font-display text-2xl font-bold text-ink">
-            {totalTime} <span className="text-[12px] font-normal text-ink-faint">min</span>
+            {totalTime} min
           </p>
           <p className="mt-2 text-[10px] font-mono text-ink-faint">
             {totalDistance} km total mileage
@@ -241,9 +197,9 @@ export function FleetManagerDashboard({
           <div className="relative isolate z-0 h-[50dvh] min-h-[340px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[500px]">
             <MapView
               stops={stops}
-              stopMarkers={stopMarkers}
+              stopMarkers={isolatedStopMarkers}
               incidents={incidents}
-              routes={routes}
+              routes={isolatedRoutes}
               altRoutes={altRoutes}
               addMode={false}
               onAddStop={() => {}}
@@ -253,11 +209,42 @@ export function FleetManagerDashboard({
             <div className="absolute top-3 left-3 z-[500] flex items-center gap-2 rounded-lg border border-line/80 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
               <span className="flex h-2 w-2 rounded-full bg-green qr-blink" />
               <span className="font-display text-[11px] font-bold text-ink">
-                Bangalore Urban Dispatch Map
+                Fleet Manager Map
               </span>
               <span className="font-mono text-[10px] text-ink-faint">
-                ({stops.length} stops)
+                ({isolatedRoutes.length} of {routes.length} truck paths · {managerRouteId === "all" ? "All Paths Visible" : `Truck #${Number(managerRouteId) + 1} Selected`})
               </span>
+            </div>
+
+            {/* Route Scoping Selector: All Trucks default, with single truck filters */}
+            <div className="absolute bottom-3 left-3 z-[500] flex flex-wrap items-center gap-1.5 rounded-xl border border-line/80 bg-white/95 p-1.5 shadow-md backdrop-blur-sm">
+              <span className="px-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-faint">
+                View Paths:
+              </span>
+              <button
+                onClick={() => setManagerRouteId("all")}
+                className={`rounded-lg px-2.5 py-1 font-mono text-[10px] font-bold transition ${
+                  managerRouteId === "all"
+                    ? "bg-green text-white shadow-sm"
+                    : "text-ink-soft hover:bg-paper"
+                }`}
+              >
+                All Trucks ({routes.length})
+              </button>
+              {routes.map((r) => (
+                <button
+                  key={r.vehicleId}
+                  onClick={() => setManagerRouteId(r.vehicleId)}
+                  className={`flex items-center gap-1.5 rounded-lg px-2 py-1 font-mono text-[10px] font-bold transition ${
+                    managerRouteId === r.vehicleId
+                      ? "bg-ink text-white shadow-sm"
+                      : "text-ink-soft hover:bg-paper"
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ background: r.color }} />
+                  Truck #{r.vehicleId + 1}
+                </button>
+              ))}
             </div>
 
             {incidents.length > 0 && (

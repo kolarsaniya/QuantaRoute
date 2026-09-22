@@ -11,6 +11,7 @@ import {
   Navigation,
   Sparkles,
   Trash2,
+  Truck,
 } from "lucide-react";
 import type { WaitVsRerouteComparison } from "../lib/types";
 
@@ -22,6 +23,8 @@ interface Props {
   onAddAccident: () => void;
   onClearIncidents: () => void;
   solveMs: number | null;
+  driverVehicleId?: number;
+  driverName?: string;
 }
 
 export function WaitRerouteComparator({
@@ -32,6 +35,8 @@ export function WaitRerouteComparator({
   onAddAccident,
   onClearIncidents,
   solveMs,
+  driverVehicleId,
+  driverName,
 }: Props) {
   const {
     hasIncident,
@@ -49,13 +54,44 @@ export function WaitRerouteComparator({
 
   const [filterAffectedOnly, setFilterAffectedOnly] = useState(false);
 
-  const displayedVehicles = filterAffectedOnly
-    ? vehicles.filter((v) => v.isDirectlyAffected)
-    : vehicles;
+  // Driver route isolation
+  const isDriverView = driverVehicleId !== undefined;
+  const driverVehicle = isDriverView
+    ? vehicles.find((v) => v.vehicleId === driverVehicleId) || vehicles[0]
+    : null;
 
-  const isRerouteBetter = recommendation === "REROUTE";
-  const maxTime = Math.max(waitOption.timeMin, rerouteOption.timeMin, 1);
-  const maxDist = Math.max(waitOption.distKm, rerouteOption.distKm, 1);
+  const displayedVehicles = isDriverView
+    ? driverVehicle ? [driverVehicle] : []
+    : filterAffectedOnly
+      ? vehicles.filter((v) => v.isDirectlyAffected)
+      : vehicles;
+
+  // Active metrics: isolated to driver vehicle if in driver mode
+  const effectiveRecommendation = isDriverView && driverVehicle
+    ? driverVehicle.recommendation
+    : recommendation;
+  const effectiveTimeSaved = isDriverView && driverVehicle
+    ? driverVehicle.timeSavingsMin
+    : timeSavedMin;
+  const effectiveWaitTime = isDriverView && driverVehicle
+    ? driverVehicle.waitTimeMin
+    : waitOption.timeMin;
+  const effectiveRerouteTime = isDriverView && driverVehicle
+    ? driverVehicle.rerouteTimeMin
+    : rerouteOption.timeMin;
+  const effectiveWaitDist = isDriverView && driverVehicle
+    ? driverVehicle.waitDistKm
+    : waitOption.distKm;
+  const effectiveRerouteDist = isDriverView && driverVehicle
+    ? driverVehicle.rerouteDistKm
+    : rerouteOption.distKm;
+  const effectiveDetourKm = isDriverView && driverVehicle
+    ? driverVehicle.detourDistKm
+    : detourKm;
+
+  const isRerouteBetter = effectiveRecommendation === "REROUTE";
+  const maxTime = Math.max(effectiveWaitTime, effectiveRerouteTime, 1);
+  const maxDist = Math.max(effectiveWaitDist, effectiveRerouteDist, 1);
   const maxFuel = Math.max(waitOption.fuelLiters, rerouteOption.fuelLiters, 1);
 
   return (
@@ -65,14 +101,25 @@ export function WaitRerouteComparator({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green text-white shadow-sm">
-              <GitCompare size={18} />
+              {isDriverView ? <Truck size={18} /> : <GitCompare size={18} />}
             </span>
             <div>
-              <h2 className="font-display text-base font-bold text-ink sm:text-lg">
-                Calculate & Compare: WAIT vs. REROUTE
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display text-base font-bold text-ink sm:text-lg">
+                  {isDriverView && driverVehicle
+                    ? `Vehicle #${driverVehicle.label} · WAIT vs. REROUTE`
+                    : "Calculate & Compare: WAIT vs. REROUTE"}
+                </h2>
+                {isDriverView && (
+                  <span className="rounded-full bg-green/15 px-2 py-0.5 font-mono text-[10px] font-bold text-green-deep border border-green/30">
+                    Your Route Only
+                  </span>
+                )}
+              </div>
               <p className="text-[12px] text-ink-faint">
-                Real-time trade-off between holding current schedules vs. dynamic QPSO detour optimization.
+                {isDriverView
+                  ? `Driver: ${driverName || "Rajesh Kumar"} · Live navigation delay & detour analysis for your truck`
+                  : "Real-time trade-off between holding current schedules vs. dynamic QPSO detour optimization."}
               </p>
             </div>
           </div>
@@ -85,10 +132,22 @@ export function WaitRerouteComparator({
             )}
             <span
               className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-bold ${
-                hasIncident ? "bg-amber/20 text-amber" : "bg-green-tint text-green-deep"
+                isDriverView
+                  ? driverVehicle?.isDirectlyAffected
+                    ? "bg-red/20 text-red border border-red/30"
+                    : "bg-green-tint text-green-deep border border-green/30"
+                  : hasIncident
+                    ? "bg-amber/20 text-amber"
+                    : "bg-green-tint text-green-deep"
               }`}
             >
-              {hasIncident ? `${incidentCount} Active Disruption${incidentCount > 1 ? "s" : ""}` : "Roads Free-Flow"}
+              {isDriverView
+                ? driverVehicle?.isDirectlyAffected
+                  ? "Congestion on Your Route"
+                  : "Your Route Clear"
+                : hasIncident
+                  ? `${incidentCount} Active Disruption${incidentCount > 1 ? "s" : ""}`
+                  : "Roads Free-Flow"}
             </span>
           </div>
         </div>
@@ -207,10 +266,12 @@ export function WaitRerouteComparator({
               </span>
               <div>
                 <h4 className="font-display text-[14px] font-bold text-ink">Option 1: WAIT</h4>
-                <p className="text-[11px] text-ink-faint">Maintain planned stop sequence</p>
+                <p className="text-[11px] text-ink-faint">
+                  {isDriverView ? "Stay on current route & sequence" : "Maintain planned stop sequence"}
+                </p>
               </div>
             </div>
-            {recommendation === "WAIT" && (
+            {effectiveRecommendation === "WAIT" && (
               <span className="flex items-center gap-1 rounded-full bg-amber/15 px-2.5 py-0.5 font-mono text-[10px] font-bold text-amber">
                 <CheckCircle2 size={11} /> Recommended
               </span>
@@ -223,7 +284,7 @@ export function WaitRerouteComparator({
                 <Clock size={11} /> Total Travel Time
               </p>
               <p className="font-mono text-base font-bold text-ink">
-                {waitOption.timeMin.toFixed(1)} <span className="text-[11px] font-normal">min</span>
+                {effectiveWaitTime.toFixed(1)} <span className="text-[11px] font-normal">min</span>
               </p>
               {waitOption.delayMin > 0 && (
                 <p className="font-mono text-[10px] text-red font-semibold">
@@ -237,7 +298,7 @@ export function WaitRerouteComparator({
                 <Navigation size={11} /> Total Distance
               </p>
               <p className="font-mono text-base font-bold text-ink">
-                {waitOption.distKm.toFixed(1)} <span className="text-[11px] font-normal">km</span>
+                {effectiveWaitDist.toFixed(1)} <span className="text-[11px] font-normal">km</span>
               </p>
               <p className="font-mono text-[10px] text-ink-faint">direct route (0 km detour)</p>
             </div>
@@ -274,7 +335,9 @@ export function WaitRerouteComparator({
             }`}
           >
             <Hourglass size={14} />
-            {activeMode === "wait" ? "Active Map Display: WAIT" : "Display WAIT Route on Map"}
+            {activeMode === "wait"
+              ? isDriverView ? "Active Course: WAIT" : "Active Map Display: WAIT"
+              : isDriverView ? "Keep WAIT Course" : "Display WAIT Route on Map"}
           </button>
         </div>
 
@@ -293,10 +356,12 @@ export function WaitRerouteComparator({
               </span>
               <div>
                 <h4 className="font-display text-[14px] font-bold text-ink">Option 2: REROUTE</h4>
-                <p className="text-[11px] text-ink-faint">Quantum PSO dynamic detour</p>
+                <p className="text-[11px] text-ink-faint">
+                  {isDriverView ? "Dynamic traffic bypass detour" : "Quantum PSO dynamic detour"}
+                </p>
               </div>
             </div>
-            {recommendation === "REROUTE" && (
+            {effectiveRecommendation === "REROUTE" && (
               <span className="flex items-center gap-1 rounded-full bg-green text-white px-2.5 py-0.5 font-mono text-[10px] font-bold">
                 <CheckCircle2 size={11} /> Recommended
               </span>
@@ -309,11 +374,11 @@ export function WaitRerouteComparator({
                 <Clock size={11} /> Total Travel Time
               </p>
               <p className="font-mono text-base font-bold text-green-deep">
-                {rerouteOption.timeMin.toFixed(1)} <span className="text-[11px] font-normal">min</span>
+                {effectiveRerouteTime.toFixed(1)} <span className="text-[11px] font-normal">min</span>
               </p>
-              {timeSavedMin > 0 ? (
+              {effectiveTimeSaved > 0 ? (
                 <p className="font-mono text-[10px] text-green-deep font-bold">
-                  -{timeSavedMin.toFixed(1)} min faster
+                  -{effectiveTimeSaved.toFixed(1)} min faster
                 </p>
               ) : (
                 <p className="font-mono text-[10px] text-ink-faint">same as baseline</p>
@@ -325,11 +390,11 @@ export function WaitRerouteComparator({
                 <Navigation size={11} /> Total Distance
               </p>
               <p className="font-mono text-base font-bold text-ink">
-                {rerouteOption.distKm.toFixed(1)} <span className="text-[11px] font-normal">km</span>
+                {effectiveRerouteDist.toFixed(1)} <span className="text-[11px] font-normal">km</span>
               </p>
-              {detourKm > 0 ? (
+              {effectiveDetourKm > 0 ? (
                 <p className="font-mono text-[10px] text-ink-faint font-semibold">
-                  +{detourKm.toFixed(1)} km detour
+                  +{effectiveDetourKm.toFixed(1)} km detour
                 </p>
               ) : (
                 <p className="font-mono text-[10px] text-ink-faint">no detour</p>
@@ -479,100 +544,172 @@ export function WaitRerouteComparator({
         </div>
       </section>
 
-      {/* Vehicle-by-Vehicle Breakdown */}
-      <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)] min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div>
-            <h3 className="font-display text-[14px] font-bold text-ink">
-              Fleet Breakdown ({vehicles.length} Trucks)
-            </h3>
-            <p className="text-[11px] text-ink-faint">
-              Inspect how each truck is individually impacted by congestion.
-            </p>
+      {/* Vehicle Breakdown: Isolated single-vehicle card for Driver, full table for Manager/Admin */}
+      {isDriverView && driverVehicle ? (
+        <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)] min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="font-display text-[14px] font-bold text-ink">
+                Your Assigned Vehicle (Truck #{driverVehicle.label})
+              </h3>
+              <p className="text-[11px] text-ink-faint">
+                Individual road analysis strictly for your route · Other trucks omitted
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                driverVehicle.recommendation === "REROUTE"
+                  ? "bg-green text-white"
+                  : "bg-amber/20 text-amber"
+              }`}
+            >
+              Recommended: {driverVehicle.recommendation}
+            </span>
           </div>
 
-          <button
-            onClick={() => setFilterAffectedOnly((f) => !f)}
-            className={`rounded-lg border px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
-              filterAffectedOnly
-                ? "border-green bg-green-tint text-green-deep"
-                : "border-line bg-paper text-ink-soft hover:border-ink"
-            }`}
-          >
-            {filterAffectedOnly ? "Show All Trucks" : "Show Congested Only"}
-          </button>
-        </div>
+          <div className="rounded-xl border border-line/70 bg-paper/60 p-3 sm:p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full shrink-0" style={{ background: driverVehicle.color }} />
+                <span className="font-display text-[13px] font-bold text-ink">
+                  Vehicle #{driverVehicle.label} · {driverName || "Rajesh Kumar"}
+                </span>
+              </div>
+              {driverVehicle.isDirectlyAffected ? (
+                <span className="rounded bg-red/15 px-2 py-0.5 text-[10px] font-bold text-red border border-red/30">
+                  In Jam Zone
+                </span>
+              ) : (
+                <span className="rounded bg-green/15 px-2 py-0.5 text-[10px] font-bold text-green-deep border border-green/30">
+                  Clear Road Ahead
+                </span>
+              )}
+            </div>
 
-        <div className="overflow-x-auto min-w-0 max-w-full -mx-1 px-1">
-          <table className="min-w-[520px] w-full text-left text-[12px]">
-            <thead>
-              <tr className="border-b border-line bg-paper font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-                <th className="px-3 py-2">Truck</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Wait Time</th>
-                <th className="px-3 py-2">Reroute Time</th>
-                <th className="px-3 py-2">Detour (km)</th>
-                <th className="px-3 py-2 text-right">Time Delta</th>
-                <th className="px-3 py-2 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line/60 font-mono text-[11px]">
-              {displayedVehicles.map((v) => {
-                const savings = v.timeSavingsMin;
-                return (
-                  <tr key={v.vehicleId} className="hover:bg-paper/50 transition">
-                    <td className="px-3 py-2.5 font-bold flex items-center gap-2 text-ink">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ background: v.color }}
-                      />
-                      Truck {v.label}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {v.isDirectlyAffected ? (
-                        <span className="rounded bg-red/10 px-1.5 py-0.5 text-[9px] font-bold text-red">
-                          In Jam Zone
-                        </span>
-                      ) : (
-                        <span className="rounded bg-green-tint px-1.5 py-0.5 text-[9px] font-semibold text-green-deep">
-                          Clear Road
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-ink">{v.waitTimeMin.toFixed(0)} min</td>
-                    <td className="px-3 py-2.5 text-ink">{v.rerouteTimeMin.toFixed(0)} min</td>
-                    <td className="px-3 py-2.5 text-ink-soft">
-                      {v.detourDistKm > 0.1 ? `+${v.detourDistKm.toFixed(1)} km` : "0 km"}
-                    </td>
-                    <td
-                      className={`px-3 py-2.5 text-right font-bold ${
-                        savings > 0.5
-                          ? "text-green-deep"
-                          : savings < -0.5
-                            ? "text-amber"
-                            : "text-ink-faint"
-                      }`}
-                    >
-                      {savings > 0 ? `-${savings.toFixed(1)}m` : savings < 0 ? `+${Math.abs(savings).toFixed(1)}m` : "0m"}
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                          v.recommendation === "REROUTE"
-                            ? "bg-green text-white"
-                            : "bg-paper text-ink-soft border border-line"
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+              <div className="rounded-lg bg-card p-2.5 border border-line/60">
+                <p className="text-[10px] text-ink-faint font-medium">WAIT Travel Time</p>
+                <p className="font-mono text-[15px] font-bold text-amber mt-0.5">{driverVehicle.waitTimeMin.toFixed(0)} min</p>
+              </div>
+              <div className="rounded-lg bg-card p-2.5 border border-line/60">
+                <p className="text-[10px] text-ink-faint font-medium">REROUTE Time</p>
+                <p className="font-mono text-[15px] font-bold text-green-deep mt-0.5">{driverVehicle.rerouteTimeMin.toFixed(0)} min</p>
+              </div>
+              <div className="rounded-lg bg-card p-2.5 border border-line/60">
+                <p className="text-[10px] text-ink-faint font-medium">Detour Distance</p>
+                <p className="font-mono text-[15px] font-bold text-ink mt-0.5">
+                  {driverVehicle.detourDistKm > 0.1 ? `+${driverVehicle.detourDistKm.toFixed(1)} km` : "0 km"}
+                </p>
+              </div>
+              <div className="rounded-lg bg-card p-2.5 border border-line/60">
+                <p className="text-[10px] text-ink-faint font-medium">Time Difference</p>
+                <p className="font-mono text-[15px] font-bold text-green-deep mt-0.5">
+                  {driverVehicle.timeSavingsMin > 0 ? `-${driverVehicle.timeSavingsMin.toFixed(1)} min` : "0 min"}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-1 flex items-center justify-between text-[11px] text-ink-soft">
+              <span>Showing: <strong className="text-ink">Vehicle #{driverVehicle.label} Only</strong></span>
+              <span className="font-mono text-[10px] text-ink-faint">Engine: QPSO-Dynamic</span>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)] min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="font-display text-[14px] font-bold text-ink">
+                Fleet Breakdown ({vehicles.length} Trucks)
+              </h3>
+              <p className="text-[11px] text-ink-faint">
+                Inspect how each truck is individually impacted by congestion.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setFilterAffectedOnly((f) => !f)}
+              className={`rounded-lg border px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
+                filterAffectedOnly
+                  ? "border-green bg-green-tint text-green-deep"
+                  : "border-line bg-paper text-ink-soft hover:border-ink"
+              }`}
+            >
+              {filterAffectedOnly ? "Show All Trucks" : "Show Congested Only"}
+            </button>
+          </div>
+
+          <div className="overflow-x-auto min-w-0 max-w-full -mx-1 px-1">
+            <table className="min-w-[520px] w-full text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-line bg-paper font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+                  <th className="px-3 py-2">Truck</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Wait Time</th>
+                  <th className="px-3 py-2">Reroute Time</th>
+                  <th className="px-3 py-2">Detour (km)</th>
+                  <th className="px-3 py-2 text-right">Time Delta</th>
+                  <th className="px-3 py-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/60 font-mono text-[11px]">
+                {displayedVehicles.map((v) => {
+                  const savings = v.timeSavingsMin;
+                  return (
+                    <tr key={v.vehicleId} className="hover:bg-paper/50 transition">
+                      <td className="px-3 py-2.5 font-bold flex items-center gap-2 text-ink">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ background: v.color }}
+                        />
+                        Truck {v.label}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {v.isDirectlyAffected ? (
+                          <span className="rounded bg-red/10 px-1.5 py-0.5 text-[9px] font-bold text-red">
+                            In Jam Zone
+                          </span>
+                        ) : (
+                          <span className="rounded bg-green-tint px-1.5 py-0.5 text-[9px] font-semibold text-green-deep">
+                            Clear Road
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-ink">{v.waitTimeMin.toFixed(0)} min</td>
+                      <td className="px-3 py-2.5 text-ink">{v.rerouteTimeMin.toFixed(0)} min</td>
+                      <td className="px-3 py-2.5 text-ink-soft">
+                        {v.detourDistKm > 0.1 ? `+${v.detourDistKm.toFixed(1)} km` : "0 km"}
+                      </td>
+                      <td
+                        className={`px-3 py-2.5 text-right font-bold ${
+                          savings > 0.5
+                            ? "text-green-deep"
+                            : savings < -0.5
+                              ? "text-amber"
+                              : "text-ink-faint"
                         }`}
                       >
-                        {v.recommendation}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                        {savings > 0 ? `-${savings.toFixed(1)}m` : savings < 0 ? `+${Math.abs(savings).toFixed(1)}m` : "0m"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                            v.recommendation === "REROUTE"
+                              ? "bg-green text-white"
+                              : "bg-paper text-ink-soft border border-line"
+                          }`}
+                        >
+                          {v.recommendation}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

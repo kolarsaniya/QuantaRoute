@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
-import { TopBar } from "./components/TopBar";
+import { Plus, Truck } from "lucide-react";
+import { TopBar, type UserRole } from "./components/TopBar";
 import { Sidebar, type View } from "./components/Sidebar";
 import { BottomNav } from "./components/BottomNav";
 import { MapView } from "./components/MapView";
@@ -13,12 +13,28 @@ import { FleetManagerDashboard } from "./components/FleetManagerDashboard";
 import { FleetVehiclesView } from "./components/FleetVehiclesView";
 import { FleetManifestView } from "./components/FleetManifestView";
 import { FleetMaintenanceView } from "./components/FleetMaintenanceView";
+import { DriverAssistantView } from "./components/DriverAssistantView";
+import { DriverDeliveriesView } from "./components/DriverDeliveriesView";
+import { DriverReportsView } from "./components/DriverReportsView";
+import { DriverNotificationsView } from "./components/DriverNotificationsView";
+import { AdminNotificationsView } from "./components/AdminNotificationsView";
+import { AddFleetModal } from "./components/AddFleetModal";
+import { ProfileModal } from "./components/ProfileModal";
+import { DraftNotificationModal } from "./components/DraftNotificationModal";
 import { HelpModal } from "./components/HelpModal";
 import { Toast, type ToastData } from "./components/Toast";
 import { buildMatrix, capacityFor, DEPOT, fleetColor, STOPS } from "./lib/network";
 import { polishTours, runQPSO, seedOptimizer } from "./lib/optimizer";
 import { calculateWaitVsReroute } from "./lib/waitReroute";
 import { getCachedRouteGeometry, snapVehicleRoutes } from "./lib/osrm";
+import {
+  INITIAL_DRIVERS,
+  INITIAL_NOTIFICATIONS,
+  type AppNotification,
+  type DriverIncidentReport,
+  type DriverNotification,
+  type DriverProfile,
+} from "./lib/driverTypes";
 import type {
   AlertData,
   Incident,
@@ -63,7 +79,19 @@ function scenarioSeed(stopList: Stop[], incs: Incident[], fleetSize: number): nu
 }
 
 export default function App() {
-  const [role, setRole] = useState<"admin" | "fleetmanager">("admin");
+  const [role, setRole] = useState<UserRole>("admin");
+  const [drivers, setDrivers] = useState<DriverProfile[]>(INITIAL_DRIVERS);
+  const [driverReports, setDriverReports] = useState<DriverIncidentReport[]>([]);
+  const [driverNotifications, setDriverNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+
+  // Modal dialog states
+  const [addFleetOpen, setAddFleetOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [draftNotifOpen, setDraftNotifOpen] = useState(false);
+
+  // Active driver for in-cab assistant (Driver #1 · Rajesh Kumar)
+  const activeDriver = drivers[0];
+
   const [view, setView] = useState<View>("dashboard");
   const [fleet, setFleet] = useState(3);
   const [stops, setStops] = useState<Stop[]>(STOPS);
@@ -71,9 +99,11 @@ export default function App() {
   const [addMode, setAddMode] = useState(false);
   const [roadSnap, setRoadSnap] = useState(true);
 
-  const handleRoleChange = useCallback((newRole: "admin" | "fleetmanager") => {
+  const handleRoleChange = useCallback((newRole: UserRole) => {
     setRole(newRole);
-    if (newRole === "fleetmanager") {
+    if (newRole === "fleetdriver") {
+      setView("driver-assistant");
+    } else if (newRole === "fleetmanager") {
       setView("fleet-dashboard");
     } else {
       setView("dashboard");
@@ -369,6 +399,173 @@ export default function App() {
         : waitRoutes
       : undefined;
 
+  // Driver route isolation (strictly Vehicle #1 / vehicleId 0)
+  const isDriver = role === "fleetdriver";
+
+  const driverActiveRoutes = useMemo(() => {
+    const r = activeRoutes.find((v) => v.vehicleId === 0) || activeRoutes[0];
+    return r ? [r] : [];
+  }, [activeRoutes]);
+
+  const driverAltRoutes = useMemo(() => {
+    if (!altRoutes) return undefined;
+    const r = altRoutes.find((v) => v.vehicleId === 0) || altRoutes[0];
+    return r ? [r] : undefined;
+  }, [altRoutes]);
+
+  const driverStops = useMemo(() => {
+    const r = driverActiveRoutes[0];
+    if (!r) return stops;
+    const stopIdSet = new Set(r.stopIds);
+    return stops.filter((s) => stopIdSet.has(s.id));
+  }, [driverActiveRoutes, stops]);
+
+  const driverStopMarkers = useMemo(() => {
+    const map: Record<number, { color: string; label: string }> = {};
+    const r = driverActiveRoutes[0];
+    if (r) {
+      r.stopIds.forEach((id, idx) => {
+        map[id] = { color: r.color, label: String(idx + 1) };
+      });
+    }
+    return map;
+  }, [driverActiveRoutes]);
+
+  /* ---------------- driver management & reporting ---------------- */
+  const handleUpdateDriver = useCallback(
+    (updated: DriverProfile) => {
+      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      pushToast(`Driver ${updated.name}'s profile updated by Admin`, "info");
+    },
+    [pushToast],
+  );
+
+  const handleAddNewFleet = useCallback(
+    (newDriver: DriverProfile) => {
+      setDrivers((prev) => [...prev, newDriver]);
+      setFleet((prev) => Math.min(5, Math.max(prev, newDriver.vehicleNumber)));
+      setAddFleetOpen(false);
+      pushToast(`Vehicle #${newDriver.vehicleNumber} & Driver ${newDriver.name} added to fleet!`, "info");
+
+      const welcomeNotif: AppNotification = {
+        id: `NOTIF-${Date.now()}`,
+        senderRole: "admin",
+        senderName: "Fleet Admin",
+        recipientRole: "fleetdriver",
+        recipientId: newDriver.id,
+        recipientName: newDriver.name,
+        title: `Vehicle #${newDriver.vehicleNumber} Assigned`,
+        message: `Welcome ${newDriver.name}! You are assigned to ${newDriver.vehicleModel} (${newDriver.plate}). Shift: ${newDriver.shift}.`,
+        timestamp: "Just now",
+        priority: "general",
+        read: false,
+        acknowledged: false,
+        type: "notification",
+      };
+      setDriverNotifications((prev) => [welcomeNotif, ...prev]);
+    },
+    [pushToast],
+  );
+
+  const handleSendNotification = useCallback(
+    (notif: AppNotification) => {
+      setDriverNotifications((prev) => [notif, ...prev]);
+      setDraftNotifOpen(false);
+      pushToast(`Notification dispatched to ${notif.recipientName || notif.recipientRole}!`, "info");
+    },
+    [pushToast],
+  );
+
+  const handleAcknowledgeNotification = useCallback(
+    (id: string) => {
+      setDriverNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, acknowledged: true, read: true } : n)),
+      );
+      pushToast("Notification acknowledged", "info");
+    },
+    [pushToast],
+  );
+
+  const handleMarkAllNotificationsRead = useCallback(() => {
+    setDriverNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    pushToast("All notifications marked as read", "info");
+  }, [pushToast]);
+
+  const handleSendReplyToAdmin = useCallback(
+    (replyText: string) => {
+      const replyNotif: AppNotification = {
+        id: `NOTIF-${Date.now()}`,
+        senderRole: "fleetdriver",
+        senderName: activeDriver?.name || "Driver",
+        recipientRole: "admin",
+        recipientName: "Super Admin",
+        title: `Reply from ${activeDriver?.name || "Driver"}`,
+        message: replyText,
+        timestamp: "Just now",
+        priority: "general",
+        read: false,
+        acknowledged: false,
+        type: "status_reply",
+      };
+      setDriverNotifications((prev) => [replyNotif, ...prev]);
+      pushToast(`Reply sent to Dispatch: "${replyText}"`, "info");
+    },
+    [activeDriver, pushToast],
+  );
+
+  const handleDriverSubmitReport = useCallback(
+    (report: DriverIncidentReport) => {
+      setDriverReports((prev) => [report, ...prev]);
+
+      const notif: AppNotification = {
+        id: `NOTIF-${Date.now()}`,
+        senderRole: "fleetdriver",
+        senderName: report.driverName,
+        recipientRole: "admin",
+        recipientName: "Super Admin",
+        title: `Driver Report: ${report.title}`,
+        message: `${report.driverName} (${report.vehiclePlate}): ${report.description}`,
+        timestamp: "Just now",
+        priority: report.severity === "critical" ? "urgent" : "route_update",
+        read: false,
+        acknowledged: false,
+        type: "incident_report",
+      };
+      setDriverNotifications((prev) => [notif, ...prev]);
+
+      if (report.type === "traffic" || report.type === "roadblock") {
+        addIncident("traffic");
+      } else if (report.type === "breakdown" || report.type === "sos") {
+        addIncident("accident");
+      }
+    },
+    [addIncident],
+  );
+
+  const unreadNotifCount = useMemo(() => {
+    return driverNotifications.filter((n) => {
+      if (n.read) return false;
+      if (role === "admin") {
+        return (
+          n.recipientRole === "admin" ||
+          n.recipientRole === "all" ||
+          n.senderRole === "fleetdriver"
+        );
+      }
+      if (role === "fleetmanager") {
+        return n.recipientRole === "fleetmanager" || n.recipientRole === "all";
+      }
+      if (role === "fleetdriver") {
+        return (
+          n.recipientRole === "fleetdriver" ||
+          n.recipientRole === "all" ||
+          n.recipientId === activeDriver?.id
+        );
+      }
+      return false;
+    }).length;
+  }, [driverNotifications, role, activeDriver]);
+
   const safeSolution = useMemo(
     () => (solution ? { ...solution, vehicles: activeRoutes } : null),
     [solution, activeRoutes],
@@ -382,10 +579,21 @@ export default function App() {
         onToast={pushToast}
         role={role}
         onRoleChange={handleRoleChange}
+        activeDriver={activeDriver}
+        onViewProfile={() => setProfileOpen(true)}
+        unreadCount={unreadNotifCount}
+        onOpenNotifications={() =>
+          setView(role === "admin" ? "admin-notifications" : "driver-notifications")
+        }
       />
 
       <div className="flex flex-1 flex-col lg:flex-row w-full max-w-full min-w-0">
-        <Sidebar view={view} setView={setView} role={role} />
+        <Sidebar
+          view={view}
+          setView={setView}
+          role={role}
+          unreadNotificationsCount={unreadNotifCount}
+        />
 
         <main className="mx-auto w-full max-w-[1400px] min-w-0 flex-1 px-3 py-3 pb-24 sm:px-4 sm:py-4 lg:px-6 lg:py-5 lg:pb-8 overflow-x-hidden">
           {view === "dashboard" && (
@@ -500,19 +708,29 @@ export default function App() {
           )}
 
           {view === "compare" && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] min-w-0">
+            <div className={isDriver ? "space-y-4 min-w-0" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] min-w-0"}>
               <div className="space-y-4 min-w-0">
                 {/* Map view at top — matching Dashboard, Deliveries, and Tracking */}
                 <div className="relative isolate z-0 h-[50dvh] min-h-[300px] overflow-hidden rounded-xl border border-line shadow-[0_2px_0_rgba(11,15,14,0.05)] lg:h-[480px]">
                   <MapView
-                    stops={stops}
-                    stopMarkers={stopMarkers}
+                    stops={isDriver ? driverStops : stops}
+                    stopMarkers={isDriver ? driverStopMarkers : stopMarkers}
                     incidents={incidents}
-                    routes={activeRoutes}
-                    altRoutes={altRoutes}
+                    routes={isDriver ? driverActiveRoutes : activeRoutes}
+                    altRoutes={isDriver ? driverAltRoutes : altRoutes}
                     addMode={false}
                     onAddStop={handleMapAdd}
                   />
+
+                  {/* Driver Route Isolation Badge */}
+                  {isDriver && (
+                    <div className="absolute top-3 left-3 z-[500] flex items-center gap-1.5 rounded-lg border border-green/30 bg-night/90 px-3 py-1.5 shadow-md backdrop-blur-sm">
+                      <Truck size={13} className="text-green-bright" />
+                      <span className="font-mono text-[11px] font-bold text-white">
+                        Showing Your Route Only · Vehicle #1
+                      </span>
+                    </div>
+                  )}
 
                   {/* Active Route Mode Indicator overlay on map */}
                   <div className="absolute top-3 right-3 z-[500] flex items-center gap-1.5 rounded-lg border border-line/70 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-sm">
@@ -543,6 +761,8 @@ export default function App() {
                     onAddAccident={() => addIncident("accident")}
                     onClearIncidents={clearIncidents}
                     solveMs={solveMs}
+                    driverVehicleId={isDriver ? 0 : undefined}
+                    driverName={isDriver ? activeDriver.name : undefined}
                   />
                 ) : (
                   <div className="rounded-xl border border-line bg-card p-6 text-center text-[13px] text-ink-faint">
@@ -551,23 +771,25 @@ export default function App() {
                 )}
               </div>
 
-              {/* Side controls (stacked neatly below on mobile, right column on desktop) */}
-              <div className="space-y-4 min-w-0">
-                <ControlDock
-                  fleet={fleet}
-                  setFleet={setFleet}
-                  solving={solving}
-                  capacity={capacityFor(fleet, stops)}
-                  onOptimize={() => optimize(fleet, incidents, stops, roadSnap)}
-                />
-                <IncidentBar
-                  count={incidents.length}
-                  onTraffic={() => addIncident("traffic")}
-                  onAccident={() => addIncident("accident")}
-                  onClear={clearIncidents}
-                />
-                <ModelSheet />
-              </div>
+              {/* Side controls (only for Admin and Fleet Manager, hidden for Fleet Driver on mobile) */}
+              {!isDriver && (
+                <div className="space-y-4 min-w-0">
+                  <ControlDock
+                    fleet={fleet}
+                    setFleet={setFleet}
+                    solving={solving}
+                    capacity={capacityFor(fleet, stops)}
+                    onOptimize={() => optimize(fleet, incidents, stops, roadSnap)}
+                  />
+                  <IncidentBar
+                    count={incidents.length}
+                    onTraffic={() => addIncident("traffic")}
+                    onAccident={() => addIncident("accident")}
+                    onClear={clearIncidents}
+                  />
+                  <ModelSheet />
+                </div>
+              )}
             </div>
           )}
 
@@ -579,6 +801,17 @@ export default function App() {
 
           {view === "settings" && (
             <SettingsView roadSnap={roadSnap} setRoadSnap={setRoadSnap} />
+          )}
+
+          {/* Admin Notifications View */}
+          {view === "admin-notifications" && (
+            <AdminNotificationsView
+              notifications={driverNotifications}
+              onDraftClick={() => setDraftNotifOpen(true)}
+              onAcknowledge={handleAcknowledgeNotification}
+              onMarkAllRead={handleMarkAllNotificationsRead}
+              onToast={pushToast}
+            />
           )}
 
           {/* Fleet Manager Views */}
@@ -596,6 +829,7 @@ export default function App() {
               onAddAccident={() => addIncident("accident")}
               onClearIncidents={clearIncidents}
               onToast={pushToast}
+              onDraftClick={() => setDraftNotifOpen(true)}
             />
           )}
 
@@ -603,7 +837,10 @@ export default function App() {
             <FleetVehiclesView
               routes={activeRoutes}
               stops={stops}
+              drivers={drivers}
+              onUpdateDriver={handleUpdateDriver}
               onToast={pushToast}
+              onAddNewFleetClick={() => setAddFleetOpen(true)}
             />
           )}
 
@@ -619,6 +856,75 @@ export default function App() {
             <FleetMaintenanceView onToast={pushToast} />
           )}
 
+          {/* Fleet Driver Views */}
+          {view === "driver-assistant" && (
+            <DriverAssistantView
+              driver={activeDriver}
+              stops={stops}
+              route={activeRoutes[0]}
+              incidents={incidents}
+              notifications={driverNotifications}
+              onNavigateTab={(tab) => setView(tab)}
+              onReportIncident={(type, note) => {
+                handleDriverSubmitReport({
+                  id: `REP-${Date.now().toString().slice(-6)}`,
+                  driverId: activeDriver.id,
+                  driverName: activeDriver.name,
+                  vehiclePlate: activeDriver.plate,
+                  type: type,
+                  title:
+                    type === "traffic"
+                      ? "Heavy Traffic Jam"
+                      : type === "breakdown"
+                        ? "Vehicle Breakdown"
+                        : type === "roadblock"
+                          ? "Road Blocked"
+                          : "Customer Absent",
+                  description: note || `Driver reported ${type}`,
+                  locationName: stops[0]?.name || "Bangalore Central",
+                  lat: stops[0]?.lat || 12.9716,
+                  lng: stops[0]?.lng || 77.5946,
+                  severity: type === "breakdown" ? "high" : "medium",
+                  timestamp: "Just now",
+                  status: "reported",
+                });
+              }}
+              onAcknowledgeNotification={handleAcknowledgeNotification}
+              onToast={pushToast}
+              onDraftClick={() => setDraftNotifOpen(true)}
+            />
+          )}
+
+          {view === "driver-deliveries" && (
+            <DriverDeliveriesView
+              driver={activeDriver}
+              stops={stops}
+              route={activeRoutes[0]}
+              onToast={pushToast}
+            />
+          )}
+
+          {view === "driver-reports" && (
+            <DriverReportsView
+              driver={activeDriver}
+              stops={stops}
+              reports={driverReports}
+              onSubmitReport={handleDriverSubmitReport}
+              onToast={pushToast}
+            />
+          )}
+
+          {view === "driver-notifications" && (
+            <DriverNotificationsView
+              driver={activeDriver}
+              notifications={driverNotifications}
+              onAcknowledge={handleAcknowledgeNotification}
+              onMarkAllRead={handleMarkAllNotificationsRead}
+              onSendReplyToAdmin={handleSendReplyToAdmin}
+              onToast={pushToast}
+            />
+          )}
+
           <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 font-mono text-[10px] text-ink-faint">
             <span>QuantaRoute · Quantum-Inspired PSO</span>
             <span>
@@ -628,7 +934,12 @@ export default function App() {
         </main>
       </div>
 
-      <BottomNav view={view} setView={setView} role={role} />
+      <BottomNav
+        view={view}
+        setView={setView}
+        role={role}
+        unreadNotificationsCount={unreadNotifCount}
+      />
 
       {pendingStop && (
         <DeliveryModal
@@ -640,6 +951,42 @@ export default function App() {
       )}
       <Toast toast={toast} />
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {addFleetOpen && (
+        <AddFleetModal
+          existingCount={drivers.length}
+          onClose={() => setAddFleetOpen(false)}
+          onAdd={handleAddNewFleet}
+        />
+      )}
+
+      {profileOpen && (
+        <ProfileModal
+          role={role}
+          driver={activeDriver}
+          onClose={() => setProfileOpen(false)}
+          onEditDriverClick={() => {
+            setProfileOpen(false);
+            setView("fleet-vehicles");
+          }}
+        />
+      )}
+
+      {draftNotifOpen && (
+        <DraftNotificationModal
+          senderRole={role}
+          senderName={
+            role === "admin"
+              ? "Super Admin"
+              : role === "fleetmanager"
+                ? "Fleet Operations Manager"
+                : activeDriver?.name || "Driver"
+          }
+          drivers={drivers}
+          onClose={() => setDraftNotifOpen(false)}
+          onSend={handleSendNotification}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import {
+  AlertTriangle,
+  Bell,
+  Bot,
   ClipboardList,
   GitCompare,
   History,
@@ -29,28 +32,49 @@ const FLEET_TABS: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "compare", label: "Wait/Reroute", icon: GitCompare },
 ];
 
+const DRIVER_TABS: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "driver-assistant", label: "Assistant", icon: Bot },
+  { id: "driver-deliveries", label: "Stops", icon: Package },
+  { id: "driver-reports", label: "Report", icon: AlertTriangle },
+  { id: "driver-notifications", label: "Alerts", icon: Bell },
+];
+
 export function BottomNav({
   view,
   setView,
   role = "admin",
+  unreadNotificationsCount = 0,
 }: {
   view: View;
   setView: (v: View) => void;
-  role?: "admin" | "fleetmanager";
+  role?: "admin" | "fleetmanager" | "fleetdriver";
+  unreadNotificationsCount?: number;
 }) {
   const [more, setMore] = useState(false);
-  const tabs = role === "fleetmanager" ? FLEET_TABS : ADMIN_TABS;
+  const tabs =
+    role === "fleetdriver"
+      ? DRIVER_TABS
+      : role === "fleetmanager"
+        ? FLEET_TABS
+        : ADMIN_TABS;
 
   const moreItems: { id: View; label: string; icon: LucideIcon }[] =
-    role === "fleetmanager"
+    role === "fleetdriver"
       ? [
-          { id: "fleet-maintenance", label: "Maintenance", icon: Wrench },
-          { id: "history", label: "History", icon: History },
+          { id: "compare", label: "Wait vs Reroute", icon: GitCompare },
+          { id: "history", label: "Trip History", icon: History },
         ]
-      : [
-          { id: "history", label: "History", icon: History },
-          { id: "settings", label: "Settings", icon: Settings },
-        ];
+      : role === "fleetmanager"
+        ? [
+            { id: "fleet-maintenance", label: "Maintenance", icon: Wrench },
+            { id: "history", label: "History", icon: History },
+          ]
+        : [
+            { id: "admin-notifications", label: "Notifications", icon: Bell },
+            { id: "fleet-vehicles", label: "Fleet & Drivers", icon: Truck },
+            { id: "history", label: "History", icon: History },
+            { id: "settings", label: "Settings", icon: Settings },
+          ];
 
   const moreActive = moreItems.some((m) => m.id === view);
 
@@ -65,8 +89,13 @@ export function BottomNav({
         <div className="grid grid-cols-5 w-full items-center">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setView(t.id)} className={tabCls(view === t.id)}>
-              <span className={`flex items-center justify-center rounded-full px-3 py-1 transition ${view === t.id ? "bg-green/25" : ""}`}>
+              <span className={`relative flex items-center justify-center rounded-full px-3 py-1 transition ${view === t.id ? "bg-green/25" : ""}`}>
                 <t.icon size={18} />
+                {t.id === "driver-notifications" && unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red px-1 font-mono text-[9px] font-bold text-white shadow">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
               </span>
               <span className="truncate max-w-full text-center leading-tight tracking-tight">{t.label}</span>
             </button>

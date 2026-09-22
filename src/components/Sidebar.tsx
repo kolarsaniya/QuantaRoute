@@ -1,4 +1,7 @@
 import {
+  AlertTriangle,
+  Bell,
+  Bot,
   ClipboardList,
   GitCompare,
   History,
@@ -21,11 +24,18 @@ export type View =
   | "fleet-dashboard"
   | "fleet-vehicles"
   | "fleet-manifest"
-  | "fleet-maintenance";
+  | "fleet-maintenance"
+  | "driver-assistant"
+  | "driver-deliveries"
+  | "driver-reports"
+  | "driver-notifications"
+  | "admin-notifications";
 
 const ADMIN_ITEMS: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "deliveries", label: "My Deliveries", icon: Package },
+  { id: "fleet-vehicles", label: "Fleet & Drivers", icon: Truck },
+  { id: "admin-notifications", label: "Notifications", icon: Bell },
   { id: "compare", label: "Wait vs Reroute", icon: GitCompare },
   { id: "tracking", label: "Live Tracking", icon: Waypoints },
   { id: "history", label: "History", icon: History },
@@ -40,23 +50,51 @@ const FLEET_ITEMS: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "fleet-maintenance", label: "Maintenance", icon: Wrench },
 ];
 
+const DRIVER_ITEMS: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "driver-assistant", label: "Driver Assistant", icon: Bot },
+  { id: "driver-deliveries", label: "My Deliveries", icon: Package },
+  { id: "driver-reports", label: "Report Incident", icon: AlertTriangle },
+  { id: "driver-notifications", label: "Notifications", icon: Bell },
+  { id: "compare", label: "Wait vs Reroute", icon: GitCompare },
+];
+
 interface Props {
   view: View;
   setView: (v: View) => void;
-  role?: "admin" | "fleetmanager";
+  role?: "admin" | "fleetmanager" | "fleetdriver";
+  unreadNotificationsCount?: number;
 }
 
-export function Sidebar({ view, setView, role = "admin" }: Props) {
-  const items = role === "fleetmanager" ? FLEET_ITEMS : ADMIN_ITEMS;
+export function Sidebar({ view, setView, role = "admin", unreadNotificationsCount = 0 }: Props) {
+  const items =
+    role === "fleetdriver"
+      ? DRIVER_ITEMS
+      : role === "fleetmanager"
+        ? FLEET_ITEMS
+        : ADMIN_ITEMS;
+
+  const portalLabel =
+    role === "fleetdriver"
+      ? "Driver Portal"
+      : role === "fleetmanager"
+        ? "Fleet Portal"
+        : "Admin Portal";
+
+  const statusBadge =
+    role === "fleetdriver"
+      ? "In-Cab Active"
+      : role === "fleetmanager"
+        ? "Ops Active"
+        : "Control";
 
   return (
     <aside className="hidden shrink-0 lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-night-line lg:bg-night lg:px-3 lg:py-4 select-none">
       <div className="mb-2 px-3 py-1 flex items-center justify-between">
         <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-white/40">
-          {role === "fleetmanager" ? "Fleet Portal" : "Admin Portal"}
+          {portalLabel}
         </span>
         <span className="rounded-full bg-green/20 px-2 py-0.5 font-mono text-[9px] font-bold text-green-bright">
-          {role === "fleetmanager" ? "Ops Active" : "Control"}
+          {statusBadge}
         </span>
       </div>
 
@@ -67,14 +105,21 @@ export function Sidebar({ view, setView, role = "admin" }: Props) {
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex shrink-0 items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition lg:w-full ${
+              className={`flex shrink-0 items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition lg:w-full ${
                 active
                   ? "bg-green text-white shadow-[0_3px_0_#0c7a37]"
                   : "text-white/65 hover:bg-night-soft hover:text-white"
               }`}
             >
-              <item.icon size={17} />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-3">
+                <item.icon size={17} />
+                <span>{item.label}</span>
+              </div>
+              {(item.id === "driver-notifications" || item.id === "admin-notifications") && unreadNotificationsCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red px-1.5 font-mono text-[10px] font-bold text-white shadow-sm">
+                  {unreadNotificationsCount}
+                </span>
+              )}
             </button>
           );
         })}

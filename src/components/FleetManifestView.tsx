@@ -2,17 +2,12 @@ import { useState } from "react";
 import {
   Check,
   CheckCircle2,
-  Clock,
   Download,
   FileText,
-  MapPin,
   Package,
-  Printer,
-  ShieldAlert,
-  Truck,
   Warehouse,
 } from "lucide-react";
-import { DRIVER_ROSTER } from "./FleetManagerDashboard";
+import { DRIVER_ROSTER } from "../lib/driverTypes";
 import { DEPOT } from "../lib/network";
 import type { Stop, VehicleRoute } from "../lib/types";
 

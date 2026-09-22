@@ -1,42 +1,78 @@
 import { useState } from "react";
 import {
   BatteryCharging,
-  CheckCircle2,
-  Filter,
   Fuel,
   MapPin,
   MessageSquare,
-  Navigation,
   Phone,
+  Plus,
   Search,
-  ShieldCheck,
   Star,
   Truck,
-  Wrench,
+  UserCog,
 } from "lucide-react";
-import { DRIVER_ROSTER, type DriverInfo } from "./FleetManagerDashboard";
+import { DRIVER_ROSTER, type DriverProfile } from "../lib/driverTypes";
 import type { Stop, VehicleRoute } from "../lib/types";
+import { EditDriverModal } from "./EditDriverModal";
 
 interface Props {
   routes: VehicleRoute[];
   stops: Stop[];
   onSelectVehicle?: (id: number) => void;
   onToast?: (msg: string, tone: "traffic" | "accident" | "info") => void;
+  drivers?: DriverProfile[];
+  onUpdateDriver?: (d: DriverProfile) => void;
+  onAddNewFleetClick?: () => void;
 }
 
-export function FleetVehiclesView({ routes, stops, onSelectVehicle, onToast }: Props) {
+export function FleetVehiclesView({
+  routes,
+  stops,
+  onSelectVehicle: _onSelectVehicle,
+  onToast,
+  drivers,
+  onUpdateDriver,
+  onAddNewFleetClick,
+}: Props) {
   const [filter, setFilter] = useState<"all" | "active" | "ev" | "diesel">("all");
   const [search, setSearch] = useState("");
+  const [editingDriver, setEditingDriver] = useState<DriverProfile | null>(null);
 
-  const allVehicles = Array.from({ length: 5 }).map((_, i) => {
+  const totalVehicleCount = Math.max(5, drivers?.length ?? 5);
+
+  const allVehicles = Array.from({ length: totalVehicleCount }).map((_, i) => {
     const route = routes.find((r) => r.vehicleId === i);
-    const driver = DRIVER_ROSTER[i];
+    const fallbackDriver = DRIVER_ROSTER[i] || {
+      id: i,
+      name: `Driver ${i + 1}`,
+      phone: "+91 98450 00000",
+      avatar: `D${i + 1}`,
+      vehicleModel: "Commercial Cargo Truck",
+      plate: `KA-01-TR-000${i + 1}`,
+      fuelType: "EV",
+      fuelLevel: 80,
+      rating: 4.8,
+    };
+    const liveDriver = drivers?.find((d) => d.vehicleNumber === i + 1);
+    const driver = liveDriver
+      ? {
+          name: liveDriver.name,
+          phone: liveDriver.phone,
+          plate: liveDriver.plate,
+          vehicleModel: liveDriver.vehicleModel,
+          fuelType: liveDriver.fuelType,
+          fuelLevel: liveDriver.batteryOrFuelLevel,
+          rating: liveDriver.rating,
+          avatar: liveDriver.avatarInitials,
+        }
+      : fallbackDriver;
     const isAssigned = Boolean(route);
     return {
       id: i,
       label: String(i + 1),
       route,
       driver,
+      rawDriver: liveDriver,
       status: isAssigned ? ("En Route" as const) : ("Standby at Depot" as const),
       odometer: 18200 + i * 4350,
       serviceDueDays: 14 + i * 18,
@@ -83,8 +119,16 @@ export function FleetVehiclesView({ routes, stops, onSelectVehicle, onToast }: P
               {routes.length} Active On Route
             </span>
             <span className="rounded-lg border border-line bg-paper px-3 py-1.5 font-mono text-[11px] font-bold text-ink-faint">
-              {5 - routes.length} Standby
+              {totalVehicleCount - routes.length} Standby
             </span>
+            {onAddNewFleetClick && (
+              <button
+                onClick={onAddNewFleetClick}
+                className="flex items-center gap-1.5 rounded-xl bg-green px-3.5 py-2 text-[12px] font-bold text-white shadow-[0_3px_0_#0c7a37] hover:bg-green-deep active:translate-y-0.5 transition"
+              >
+                <Plus size={15} /> Add New Fleet & Driver
+              </button>
+            )}
           </div>
         </div>
 
@@ -129,7 +173,7 @@ export function FleetVehiclesView({ routes, stops, onSelectVehicle, onToast }: P
       {/* Vehicle Cards Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((item) => {
-          const { id, label, route, driver, status, odometer, serviceDueDays } = item;
+          const { id, label, route, driver, status } = item;
           const isEnRoute = status === "En Route";
           const stopsCount = route?.stopIds.length ?? 0;
           const assignedStops = route
@@ -247,11 +291,36 @@ export function FleetVehiclesView({ routes, stops, onSelectVehicle, onToast }: P
                 >
                   <MessageSquare size={12} /> Text
                 </button>
+                <button
+                  onClick={() => {
+                    const drv = item.rawDriver || drivers?.find((d) => d.vehicleNumber === id + 1);
+                    if (drv) {
+                      setEditingDriver(drv);
+                    } else {
+                      onToast?.("Driver profile selected for editing", "info");
+                    }
+                  }}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-line bg-paper py-2 text-[11px] font-bold text-ink hover:bg-green hover:text-white hover:border-green transition"
+                  title="Admin: Edit Driver Personal & Vehicle Details"
+                >
+                  <UserCog size={12} /> Edit
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {editingDriver && (
+        <EditDriverModal
+          driver={editingDriver}
+          onClose={() => setEditingDriver(null)}
+          onSave={(updated) => {
+            onUpdateDriver?.(updated);
+            onToast?.(`Driver profile for ${updated.name} updated successfully!`, "info");
+          }}
+        />
+      )}
     </div>
   );
 }
