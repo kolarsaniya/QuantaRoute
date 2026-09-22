@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ShieldCheck, UserCheck, X } from "lucide-react";
+import { Check, ShieldCheck, X } from "lucide-react";
 import type { DriverProfile } from "../lib/driverTypes";
 
 interface Props {

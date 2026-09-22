@@ -7,9 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ExternalLink,
-  Fuel,
   Gauge,
-  MapPin,
   MessageSquare,
   Mic,
   Navigation,
@@ -17,9 +15,6 @@ import {
   Radio,
   Send,
   Sparkles,
-  Truck,
-  Wrench,
-  Zap,
 } from "lucide-react";
 import { MapView } from "./MapView";
 import type { DriverNotification, DriverProfile } from "../lib/driverTypes";
@@ -269,7 +264,7 @@ export function DriverAssistantView({
               <AlertCircle size={20} className="text-amber shrink-0 animate-pulse" />
               <div>
                 <p className="font-display text-[13px] font-bold text-ink">
-                  Broadcast from {urgentNotif.sender}: {urgentNotif.title}
+                  Broadcast from {urgentNotif.senderName || "Dispatch"}: {urgentNotif.title}
                 </p>
                 <p className="text-[12px] text-ink-soft">{urgentNotif.message}</p>
               </div>

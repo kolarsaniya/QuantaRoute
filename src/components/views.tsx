@@ -500,8 +500,8 @@ export function SettingsView({
           <Route size={16} />
         </span>
         <p className="text-[12px] leading-snug text-ink-soft">
-          Routes, fleets and benchmarks reset automatically whenever the scenario changes — capacity is kept feasible
-          for the selected fleet size.
+          Routes, fleets and benchmarks reset automatically whenever the scenario changes — capacity is dynamically
+          balanced for optimal multi-vehicle routing.
         </p>
       </section>
     </div>

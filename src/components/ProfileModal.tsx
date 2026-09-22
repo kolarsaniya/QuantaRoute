@@ -1,4 +1,4 @@
-import { BatteryCharging, CheckCircle2, Mail, MapPin, Phone, ShieldCheck, Star, Truck, User, X } from "lucide-react";
+import { Star, X } from "lucide-react";
 import type { DriverProfile } from "../lib/driverTypes";
 import type { UserRole } from "./TopBar";
 

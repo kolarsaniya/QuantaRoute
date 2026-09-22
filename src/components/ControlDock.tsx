@@ -1,14 +1,14 @@
-import { Loader2, Minus, Navigation, Plus } from "lucide-react";
+import { CheckCircle2, Loader2, Navigation, Sparkles } from "lucide-react";
 
 interface Props {
-  fleet: number;
-  setFleet: (n: number) => void;
+  fleet?: number;
+  setFleet?: (n: number) => void;
   solving: boolean;
   onOptimize: () => void;
-  capacity: number;
+  capacity?: number;
 }
 
-export function ControlDock({ fleet, setFleet, solving, onOptimize, capacity }: Props) {
+export function ControlDock({ solving, onOptimize }: Props) {
   return (
     <section className="anim-up rounded-xl border border-line bg-card p-4 shadow-[0_2px_0_rgba(11,15,14,0.05)]">
       <div className="flex items-center justify-between">
@@ -16,28 +16,15 @@ export function ControlDock({ fleet, setFleet, solving, onOptimize, capacity }: 
         <span className="font-mono text-[10px] text-ink-faint">live scenario</span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-lg border border-line bg-paper px-3 py-2.5">
+      <div className="mt-3 flex items-center justify-between rounded-lg border border-line bg-paper px-3.5 py-3">
         <div>
-          <p className="text-[13px] font-semibold text-ink">Fleet size</p>
-          <p className="font-mono text-[10px] text-ink-faint">capacity {capacity} u / truck</p>
+          <p className="text-[13px] font-semibold text-ink flex items-center gap-1.5">
+            <Sparkles size={14} className="text-green" /> Route Optimization
+          </p>
+          <p className="font-mono text-[10px] text-ink-soft">QPSO Algorithmic Engine</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setFleet(Math.max(1, fleet - 1))}
-            disabled={fleet <= 1}
-            aria-label="Remove truck"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-white text-ink transition hover:border-ink hover:bg-ink hover:text-white disabled:opacity-30 disabled:hover:border-line disabled:hover:bg-white disabled:hover:text-ink sm:h-8 sm:w-8"
-          >
-            <Minus size={15} />
-          </button>
-          <span className="w-6 text-center font-display text-xl font-bold text-green-deep">{fleet}</span>
-          <button
-            onClick={() => setFleet(fleet + 1)}
-            aria-label="Add truck"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-white text-ink transition hover:border-ink hover:bg-ink hover:text-white sm:h-8 sm:w-8"
-          >
-            <Plus size={15} />
-          </button>
+        <div className="flex items-center gap-1 rounded-full bg-green/10 border border-green/30 px-2.5 py-1 text-[11px] font-bold text-green-deep">
+          <CheckCircle2 size={13} className="text-green" /> Shortest Path
         </div>
       </div>
 
@@ -50,7 +37,7 @@ export function ControlDock({ fleet, setFleet, solving, onOptimize, capacity }: 
         {solving ? "Solving…" : "Re-optimize now"}
       </button>
       <p className="mt-2 text-center font-mono text-[10px] text-ink-faint">
-        unlimited fleet · stops & incidents update weights live
+        Dynamic real-time routing · Automatically balanced for shortest paths
       </p>
     </section>
   );

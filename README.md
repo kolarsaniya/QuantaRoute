@@ -25,7 +25,7 @@
 Switch seamlessly between three role perspectives from the TopBar profile menu:
 
 #### A. Super Admin Console
-- **Full Fleet Oversight**: Control active fleet size ($1 \to 5$ vehicles), optimize routes with QPSO, simulate traffic and accidents.
+- **Full Fleet Oversight**: Automated route optimization with Quantum PSO, live road disruption injection, and dynamic dispatch control.
 - **Dispatch Notifications Center**: Dedicated communications hub with **Received from Drivers** (incident reports, SOS alerts, roadside assistance requests) and **Sent Broadcasts** tabs.
 - **Driver Details Management**: Update driver profiles, contact information, driving license numbers, shift timings, and medical/emergency contacts.
 - **Add New Fleet & Driver**: Mobile-first registration modal to onboard new vehicles (auto-incremented vehicle number, model, EV vs Diesel, plate) and assign drivers.
@@ -109,7 +109,7 @@ src/
    ├─ Sidebar.tsx                     # Desktop role-adaptive side navigation bar
    ├─ BottomNav.tsx                   # Mobile role-adaptive bottom navigation bar
    ├─ MapView.tsx                     # Leaflet map container, custom pins, route paths, and layer toggle
-   ├─ ControlDock.tsx                 # Fleet size slider, scenario resets, and solve action bar
+   ├─ ControlDock.tsx                 # Quantum PSO optimization status and solve action bar
    ├─ panels.tsx                      # Incident disruption bar (+Jam, +Crash), traffic alerts, and stats
    ├─ WaitRerouteComparator.tsx       # Interactive WAIT vs. REROUTE comparator (with driver route isolation)
    ├─ FleetManagerDashboard.tsx       # Fleet Manager console with all-trucks map view and route filters

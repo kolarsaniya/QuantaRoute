@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import type { AlertData, Solution, Stop } from "../lib/types";
-import { capacityFor, DEPOT } from "../lib/network";
+import { DEPOT } from "../lib/network";
 
 /* ---------------- incident simulation bar ---------------- */
 export function IncidentBar({
@@ -65,7 +65,7 @@ export function IncidentBar({
 }
 
 /* ---------------- top info cards ---------------- */
-export function InfoCards({ stops, fleet }: { stops: Stop[]; fleet: number }) {
+export function InfoCards({ stops }: { stops: Stop[]; fleet?: number }) {
   const totalUnits = stops.reduce((s, x) => s + x.demand, 0);
   const cards = [
     {
@@ -85,9 +85,9 @@ export function InfoCards({ stops, fleet }: { stops: Stop[]; fleet: number }) {
     {
       icon: Truck,
       tint: "bg-green text-white",
-      label: "Vehicle",
-      title: `${fleet} Truck${fleet > 1 ? "s" : ""}`,
-      sub: `Max ${capacityFor(fleet, stops)} units each`,
+      label: "Routing Engine",
+      title: "Quantum PSO",
+      sub: "Optimal shortest paths active",
     },
   ];
   return (

@@ -26,7 +26,7 @@ export function AdminNotificationsView({
   onDraftClick,
   onAcknowledge,
   onMarkAllRead,
-  onToast,
+  onToast: _onToast,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"received" | "sent">("received");
   const [search, setSearch] = useState("");

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Send, Sparkles, User, X } from "lucide-react";
+import { Bell, Send, Sparkles, X } from "lucide-react";
 import type { AppNotification, DriverProfile } from "../lib/driverTypes";
 import type { UserRole } from "./TopBar";
 

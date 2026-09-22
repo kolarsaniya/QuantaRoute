@@ -307,9 +307,9 @@ export function HelpModal({ open, onClose }: Props) {
                 <div className="flex items-start gap-3 rounded-lg border border-line bg-card p-3">
                   <Truck size={16} className="text-blue-600 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-bold text-ink text-[12px]">Change Number of Trucks</p>
+                    <p className="font-bold text-ink text-[12px]">Dynamic Route Optimization</p>
                     <p className="text-[11px] text-ink-faint">
-                      Use the <strong>+</strong> and <strong>-</strong> buttons on Fleet Size to add or remove trucks. The app automatically re-balances package loads.
+                      Click <strong>"Re-optimize now"</strong> to automatically compute the shortest, congestion-aware paths across all delivery vehicles using Quantum PSO.
                     </p>
                   </div>
                 </div>

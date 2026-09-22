@@ -8,9 +8,6 @@ import {
   Package,
   Phone,
   Search,
-  ShieldCheck,
-  Truck,
-  UserCheck,
 } from "lucide-react";
 import type { DriverProfile } from "../lib/driverTypes";
 import type { Stop, VehicleRoute } from "../lib/types";

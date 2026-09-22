@@ -32,7 +32,6 @@ import {
   INITIAL_NOTIFICATIONS,
   type AppNotification,
   type DriverIncidentReport,
-  type DriverNotification,
   type DriverProfile,
 } from "./lib/driverTypes";
 import type {
@@ -129,8 +128,8 @@ export default function App() {
   const prevTime = useRef<number | null>(null);
   const prevIncidents = useRef<number>(0);
 
-  const pushToast = useCallback((msg: string, tone: ToastData["tone"]) => {
-    setToast({ id: Date.now() + Math.random(), msg, tone });
+  const pushToast = useCallback((msg: string, tone?: ToastData["tone"]) => {
+    setToast({ id: Date.now() + Math.random(), msg, tone: tone || "info" });
   }, []);
   useEffect(() => {
     if (!toast) return;
@@ -620,7 +619,7 @@ export default function App() {
                 </button>
               </div>
 
-              <InfoCards stops={stops} fleet={fleet} />
+              <InfoCards stops={stops} />
 
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] min-w-0">
                 <div className="space-y-4 min-w-0">
@@ -775,10 +774,7 @@ export default function App() {
               {!isDriver && (
                 <div className="space-y-4 min-w-0">
                   <ControlDock
-                    fleet={fleet}
-                    setFleet={setFleet}
                     solving={solving}
-                    capacity={capacityFor(fleet, stops)}
                     onOptimize={() => optimize(fleet, incidents, stops, roadSnap)}
                   />
                   <IncidentBar
